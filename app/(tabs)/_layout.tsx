@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
     paddingBottom: 8,
     paddingTop: 8,
-    height: 100,
+    height: 70,
   },
   tabBarLabel: {
     fontFamily: 'Tajawal_400Regular',

@@ -30,6 +30,9 @@
       },
       "router": {}
     },
-    "owner": "salaheddinet"
+    "owner": "salaheddinet",
+    "android": {
+      "package": "com.salaheddinet.grow"
+    }
   }
 }

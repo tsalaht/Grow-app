@@ -6,11 +6,15 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import NotificationService from '@/services/NotificationService';
 import { MyAppProvider } from '@/context/MyAppContext';
 
-// Enable RTL for Arabic
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
+
 
 export default function RootLayout() {
+ useEffect(() => {
+    if (I18nManager.isRTL) {
+      I18nManager.forceRTL(false);
+      I18nManager.allowRTL(false);
+    }
+  }, []);
   useFrameworkReady();
 
   useEffect(() => {
