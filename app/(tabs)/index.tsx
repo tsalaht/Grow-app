@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerContent: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
