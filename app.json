@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "bolt-expo-nativewind",
+    "slug": "grow",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0324319c-f87d-464e-8ff2-bf735c0763d7"
+      },
+      "router": {}
+    },
+    "owner": "salaheddinet"
+  }
+}
