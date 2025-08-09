@@ -11,8 +11,9 @@ import {
   Alert,
   Modal,
   Switch,
+  Platform,
 } from 'react-native';
-import { Brain, Plus, Search, Filter, CreditCard as Edit3, Trash2, Bell, BellOff, Calendar, Clock, Repeat, X, Check, Phone, Target, Lightbulb, FileText, Briefcase, BookOpen, MapPin, Folder } from 'lucide-react-native';
+import { Brain, Plus, Search, Filter, CreditCard as Edit3, Trash2, Bell, BellOff, Calendar, Clock, Repeat, X, Check, Phone, Target, Lightbulb, FileText, Briefcase, BookOpen, MapPin, Folder, Timer, CalendarDays } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
 
@@ -41,15 +42,15 @@ interface Note {
 interface Category {
   id: 'work' | 'development' | 'follow-up' | 'other';
   name: string;
-  emoji: string;
+  icon: React.ReactNode;
   color: string;
 }
 
 const categories: Category[] = [
-  { id: 'work', name: 'عمل', emoji: '💼', color: '#3B82F6' },
-  { id: 'development', name: 'تطوير ذاتي', emoji: '📚', color: '#095028' },
-  { id: 'follow-up', name: 'متابعة', emoji: '📍', color: '#F59E0B' },
-  { id: 'other', name: 'أخرى', emoji: '🗂️', color: '#6B7280' },
+  { id: 'work', name: 'عمل', icon: <Briefcase size={20} color="#3B82F6" />, color: '#3B82F6' },
+  { id: 'development', name: 'تطوير ذاتي', icon: <BookOpen size={20} color="#095028" />, color: '#095028' },
+  { id: 'follow-up', name: 'متابعة', icon: <MapPin size={20} color="#F59E0B" />, color: '#F59E0B' },
+  { id: 'other', name: 'أخرى', icon: <Folder size={20} color="#6B7280" />, color: '#6B7280' },
 ];
 
 const keywordIcons: { [key: string]: React.ReactNode } = {
@@ -60,34 +61,43 @@ const keywordIcons: { [key: string]: React.ReactNode } = {
 };
 
 const reminderTypes = [
-  { id: 'hourly', name: 'كل ساعة', emoji: '⏰' },
-  { id: 'every-2-hours', name: 'كل ساعتين', emoji: '⏰' },
-  { id: 'after-time', name: 'بعد وقت معين', emoji: '⏰' },
-  { id: 'specific-time', name: 'وقت محدد من اليوم', emoji: '⏰' },
-  { id: 'tomorrow', name: 'غداً في وقت معين', emoji: '📅' },
-  { id: 'custom', name: 'اختيار يوم + وقت', emoji: '📆' },
+  { id: 'hourly', name: 'كل ساعة', icon: <Clock size={16} color="#095028" /> },
+  { id: 'after-time', name: 'بعد وقت معين', icon: <Timer size={16} color="#095028" /> },
+  { id: 'custom', name: 'اختيار يوم + وقت', icon: <CalendarDays size={16} color="#095028" /> },
 ];
 
 export default function SmartNotesScreen() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [showAddNote, setShowAddNote] = useState(false);
   const [showReminderModal, setShowReminderModal] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [notificationService] = useState(() => NotificationService.getInstance());
   
-  const [newNote, setNewNote] = useState({
+  const [newNote, setNewNote] = useState<{
+    title: string;
+    content: string;
+    category: 'work' | 'development' | 'follow-up' | 'other';
+  }>({
     title: '',
     content: '',
-    category: 'other' as const,
+    category: 'other',
   });
 
-  const [reminderSettings, setReminderSettings] = useState({
+  const [reminderSettings, setReminderSettings] = useState<{
+    enabled: boolean;
+    type: 'hourly' | 'every-2-hours' | 'after-time' | 'specific-time' | 'tomorrow' | 'custom';
+    time: string;
+    date?: Date;
+    repeat: 'none' | 'daily' | 'weekly' | 'monthly';
+  }>({
     enabled: false,
-    type: 'hourly' as const,
+    type: 'hourly',
     time: '17:00',
-    repeat: 'none' as const,
+    repeat: 'none',
   });
 
   const [fontsLoaded] = useFonts({
@@ -102,6 +112,79 @@ export default function SmartNotesScreen() {
     return keywords.filter(keyword => 
       text.toLowerCase().includes(keyword.toLowerCase())
     );
+  };
+
+  // التحقق من صحة الوقت للتنبيه
+  const isValidTime = (time: string): boolean => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const now = new Date();
+    const selectedTime = new Date();
+    selectedTime.setHours(hours, minutes, 0, 0);
+    
+    return selectedTime > now;
+  };
+
+  // الحصول على الحد الأدنى للتاريخ (اليوم الحالي)
+  const getMinDate = (): string => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  // الحصول على الحد الأدنى للوقت (الوقت الحالي + ساعة)
+  const getMinTime = (): string => {
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    return now.toTimeString().slice(0, 5);
+  };
+
+  // إنشاء خيارات الوقت المتاحة
+  const getAvailableTimeSlots = (): string[] => {
+    const slots = [];
+    const now = new Date();
+    const startHour = now.getHours() + 1; // بداية من الساعة التالية
+    
+    for (let hour = startHour; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) { // كل 30 دقيقة
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        slots.push(timeString);
+      }
+    }
+    
+    return slots;
+  };
+
+  // تنسيق الوقت للعرض
+  const formatTimeForDisplay = (time: string): string => {
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'م' : 'ص';
+    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  };
+
+  // إنشاء خيارات التواريخ المتاحة
+  const getAvailableDates = (): string[] => {
+    const dates = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 30; i++) { // 30 يوم من اليوم
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(date.toISOString().split('T')[0]);
+    }
+    
+    return dates;
+  };
+
+  // تنسيق التاريخ للعرض
+  const formatDateForDisplay = (dateString: string): string => {
+    const date = new Date(dateString);
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    };
+    return date.toLocaleDateString('ar-SA', options);
   };
 
   // إضافة ملاحظة جديدة
@@ -123,6 +206,7 @@ export default function SmartNotesScreen() {
         enabled: true,
         type: reminderSettings.type,
         time: reminderSettings.time,
+        date: reminderSettings.date,
         repeat: reminderSettings.repeat,
       } : undefined,
       isActive: true,
@@ -262,7 +346,7 @@ export default function SmartNotesScreen() {
                   ]}
                   onPress={() => setNewNote({...newNote, category: category.id})}
                 >
-                  <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                  <View style={styles.categoryIcon}>{category.icon}</View>
                   <Text style={[styles.categoryName, { color: category.color }]}>
                     {category.name}
                   </Text>
@@ -336,7 +420,7 @@ export default function SmartNotesScreen() {
                       type: type.id as any
                     })}
                   >
-                    <Text style={styles.reminderEmoji}>{type.emoji}</Text>
+                    <View style={styles.reminderIcon}>{type.icon}</View>
                     <Text style={styles.reminderOptionText}>{type.name}</Text>
                     {reminderSettings.type === type.id && (
                       <Check size={20} color="#095028" />
@@ -344,46 +428,58 @@ export default function SmartNotesScreen() {
                   </TouchableOpacity>
                 ))}
 
-                {(reminderSettings.type === 'specific-time' || 
-                  reminderSettings.type === 'tomorrow') && (
+                {reminderSettings.type === 'after-time' && (
                   <View style={styles.timeInputGroup}>
-                    <Text style={styles.sectionTitle}>الوقت</Text>
-                    <TextInput
-                      style={styles.timeInput}
-                      placeholder="17:00"
-                      value={reminderSettings.time}
-                      onChangeText={(time) => setReminderSettings({
-                        ...reminderSettings, 
-                        time
-                      })}
-                      textAlign="center"
-                    />
+                    <Text style={styles.sectionTitle}>الوقت (من الآن)</Text>
+                    <TouchableOpacity
+                      style={[
+                        styles.timePickerButton,
+                        !isValidTime(reminderSettings.time) && styles.invalidTimeInput
+                      ]}
+                      onPress={() => setShowTimePicker(true)}
+                    >
+                      <Clock size={20} color="#095028" />
+                      <Text style={styles.timePickerButtonText}>
+                        {reminderSettings.time ? formatTimeForDisplay(reminderSettings.time) : 'اختر الوقت'}
+                      </Text>
+                    </TouchableOpacity>
+                    {!isValidTime(reminderSettings.time) && reminderSettings.time && (
+                      <Text style={styles.errorText}>
+                        يجب أن يكون الوقت بعد الوقت الحالي
+                      </Text>
+                    )}
                   </View>
                 )}
 
-                <Text style={styles.sectionTitle}>التكرار</Text>
-                {['none', 'daily', 'weekly', 'monthly'].map((repeat) => (
-                  <TouchableOpacity
-                    key={repeat}
-                    style={[
-                      styles.reminderOption,
-                      reminderSettings.repeat === repeat && styles.selectedReminderOption
-                    ]}
-                    onPress={() => setReminderSettings({
-                      ...reminderSettings, 
-                      repeat: repeat as any
-                    })}
-                  >
-                    <Text style={styles.reminderOptionText}>
-                      {repeat === 'none' ? 'بدون تكرار' :
-                       repeat === 'daily' ? 'يومياً' :
-                       repeat === 'weekly' ? 'أسبوعياً' : 'شهرياً'}
-                    </Text>
-                    {reminderSettings.repeat === repeat && (
-                      <Check size={20} color="#095028" />
-                    )}
-                  </TouchableOpacity>
-                ))}
+                {reminderSettings.type === 'custom' && (
+                  <>
+                    <View style={styles.dateInputGroup}>
+                      <Text style={styles.sectionTitle}>التاريخ</Text>
+                      <TouchableOpacity
+                        style={styles.datePickerButton}
+                        onPress={() => setShowDatePicker(true)}
+                      >
+                        <Calendar size={20} color="#095028" />
+                        <Text style={styles.datePickerButtonText}>
+                          {reminderSettings.date ? formatDateForDisplay(reminderSettings.date.toISOString().split('T')[0]) : 'اختر التاريخ'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <View style={styles.timeInputGroup}>
+                      <Text style={styles.sectionTitle}>الوقت</Text>
+                      <TouchableOpacity
+                        style={styles.timePickerButton}
+                        onPress={() => setShowTimePicker(true)}
+                      >
+                        <Clock size={20} color="#095028" />
+                        <Text style={styles.timePickerButtonText}>
+                          {reminderSettings.time ? formatTimeForDisplay(reminderSettings.time) : 'اختر الوقت'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
               </ScrollView>
 
               <TouchableOpacity 
@@ -392,6 +488,103 @@ export default function SmartNotesScreen() {
               >
                 <Text style={styles.modalSaveButtonText}>تم</Text>
               </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* نافذة اختيار الوقت */}
+        <Modal
+          visible={showTimePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.timePickerModal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>اختر الوقت</Text>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <X size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.timePickerContent}>
+                <Text style={styles.sectionTitle}>الأوقات المتاحة</Text>
+                <View style={styles.timeSlotsGrid}>
+                  {getAvailableTimeSlots().map((timeSlot) => (
+                    <TouchableOpacity
+                      key={timeSlot}
+                      style={[
+                        styles.timeSlotButton,
+                        reminderSettings.time === timeSlot && styles.selectedTimeSlot
+                      ]}
+                      onPress={() => {
+                        setReminderSettings({
+                          ...reminderSettings,
+                          time: timeSlot
+                        });
+                        setShowTimePicker(false);
+                      }}
+                    >
+                      <Text style={[
+                        styles.timeSlotText,
+                        reminderSettings.time === timeSlot && styles.selectedTimeSlotText
+                      ]}>
+                        {formatTimeForDisplay(timeSlot)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* نافذة اختيار التاريخ */}
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.datePickerModal}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>اختر التاريخ</Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <X size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.datePickerContent}>
+                <Text style={styles.sectionTitle}>التواريخ المتاحة</Text>
+                <View style={styles.dateSlotsList}>
+                  {getAvailableDates().map((dateString) => (
+                    <TouchableOpacity
+                      key={dateString}
+                      style={[
+                        styles.dateSlotButton,
+                        reminderSettings.date && reminderSettings.date.toISOString().split('T')[0] === dateString && styles.selectedDateSlot
+                      ]}
+                      onPress={() => {
+                        const date = new Date(dateString);
+                        setReminderSettings({
+                          ...reminderSettings,
+                          date
+                        });
+                        setShowDatePicker(false);
+                      }}
+                    >
+                      <Text style={[
+                        styles.dateSlotText,
+                        reminderSettings.date && reminderSettings.date.toISOString().split('T')[0] === dateString && styles.selectedDateSlotText
+                      ]}>
+                        {formatDateForDisplay(dateString)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -457,7 +650,7 @@ export default function SmartNotesScreen() {
                   ]}
                   onPress={() => setFilterCategory(category.id)}
                 >
-                  <Text style={styles.filterEmoji}>{category.emoji}</Text>
+                  <View style={styles.filterIcon}>{category.icon}</View>
                   <Text style={[
                     styles.filterChipText,
                     filterCategory === category.id && styles.activeFilterChipText
@@ -493,7 +686,7 @@ export default function SmartNotesScreen() {
                 ]}>
                   <View style={styles.noteHeader}>
                     <View style={styles.noteHeaderLeft}>
-                      <Text style={styles.categoryEmoji}>{category?.emoji}</Text>
+                      <View style={styles.categoryIcon}>{category?.icon}</View>
                       <View style={styles.noteInfo}>
                         <Text style={styles.noteTitle}>{note.title}</Text>
                         <Text style={styles.noteDate}>
@@ -647,9 +840,7 @@ const styles = StyleSheet.create({
   activeFilterChip: {
     backgroundColor: '#095028',
   },
-  filterEmoji: {
-    fontSize: 12,
-  },
+
   filterChipText: {
     fontSize: 12,
     fontFamily: 'Tajawal_400Regular',
@@ -708,8 +899,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 8,
   },
-  categoryEmoji: {
-    fontSize: 20,
+  categoryIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   noteInfo: {
     flex: 1,
@@ -929,6 +1123,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Tajawal_500Medium',
   },
+  filterIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   reminderHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -947,6 +1147,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Tajawal_500Medium',
     color: '#095028',
+  },
+  reminderIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   saveButton: {
     flexDirection: 'row',
@@ -978,7 +1184,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    maxHeight: '90%',
+    
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1003,7 +1210,7 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 12,
     marginTop: 16,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   reminderOption: {
     flexDirection: 'row',
@@ -1019,9 +1226,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#095028',
   },
-  reminderEmoji: {
-    fontSize: 16,
-  },
+
   reminderOptionText: {
     flex: 1,
     fontSize: 14,
@@ -1031,6 +1236,7 @@ const styles = StyleSheet.create({
   },
   timeInputGroup: {
     marginTop: 16,
+    marginBottom: 40, 
   },
   timeInput: {
     borderWidth: 1,
@@ -1051,6 +1257,134 @@ const styles = StyleSheet.create({
   modalSaveButtonText: {
     fontSize: 16,
     fontFamily: 'Tajawal_700Bold',
+    color: '#FFFFFF',
+  },
+  invalidTimeInput: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  errorText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#EF4444',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  dateInputGroup: {
+    marginTop: 16,
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    fontFamily: 'Tajawal_400Regular',
+    backgroundColor: '#FFFFFF',
+  },
+  timePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    gap: 8,
+  },
+  timePickerButtonText: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+  },
+  timePickerModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 20,
+  },
+  timePickerContent: {
+    padding: 20,
+    maxHeight: 400,
+    paddingBottom: 20,
+  },
+  timeSlotsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+    paddingBottom: 20,
+  },
+  timeSlotButton: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: '30%',
+    alignItems: 'center',
+  },
+  selectedTimeSlot: {
+    backgroundColor: '#095028',
+  },
+  timeSlotText: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+  },
+  selectedTimeSlotText: {
+    color: '#FFFFFF',
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    gap: 8,
+  },
+  datePickerButtonText: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+  },
+  datePickerModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+  },
+  datePickerContent: {
+    paddingHorizontal: 20,
+    maxHeight: 400,
+    paddingVertical:20
+  },
+  dateSlotsList: {
+    gap: 8,
+    marginTop: 12,
+    paddingBottom: 30,
+  },
+  dateSlotButton: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  selectedDateSlot: {
+    backgroundColor: '#095028',
+  },
+  dateSlotText: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+    textAlign: 'center',
+  },
+  selectedDateSlotText: {
     color: '#FFFFFF',
   },
 });

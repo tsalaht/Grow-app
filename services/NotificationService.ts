@@ -19,7 +19,7 @@ export interface NotificationData {
   title: string;
   body: string;
   data?: any;
-  trigger: Notifications.NotificationTriggerInput;
+  trigger: any;
   categoryId?: string;
 }
 
@@ -249,7 +249,7 @@ export class NotificationService {
   async scheduleSmartNoteReminder(note: any): Promise<string> {
     if (!note.reminderSettings || !note.reminderSettings.enabled) return '';
 
-    let trigger: Notifications.NotificationTriggerInput;
+    let trigger: any;
     const now = new Date();
 
     switch (note.reminderSettings.type) {

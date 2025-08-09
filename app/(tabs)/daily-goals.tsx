@@ -11,12 +11,21 @@ import {
   I18nManager,
   Modal,
 } from 'react-native';
-import { Target, Plus, Check, X, CreditCard as Edit3, Trash2, Calendar, Bell, User } from 'lucide-react-native';
+import { Target, Plus, Check, X, CreditCard as Edit3, Trash2, Calendar, Bell, User, BookOpen } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
 
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
+
+const days = [
+  'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'
+];
+
+const months = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+];
 
 interface Task {
   id: string;
@@ -41,10 +50,16 @@ export default function TasksScreen() {
     },
   ]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPeriodModal, setShowPeriodModal] = useState(false);
+  const [showDayModal, setShowDayModal] = useState(false);
+  const [showMonthModal, setShowMonthModal] = useState(false);
   const [newTask, setNewTask] = useState({
     title: '',
     type: 'daily' as 'daily' | 'weekly' | 'monthly',
     time: '08:00',
+    period: 'morning' as 'morning' | 'evening',
+    day: 'الأحد',
+    month: 'يناير',
     category: 'عام'
   });
   const [notificationService] = useState(() => NotificationService.getInstance());
@@ -72,7 +87,15 @@ export default function TasksScreen() {
     };
 
     setTasks([...tasks, task]);
-    setNewTask({ title: '', type: 'daily', time: '08:00', category: 'عام' });
+    setNewTask({ 
+      title: '', 
+      type: 'daily', 
+      time: '08:00', 
+      period: 'morning',
+      day: 'الأحد',
+      month: 'يناير',
+      category: 'عام' 
+    });
     setShowAddModal(false);
     
     // جدولة إشعار المهمة
@@ -187,7 +210,7 @@ export default function TasksScreen() {
             <View key={task.id} style={styles.taskItem}>
               <View style={styles.taskLeft}>
                 <View style={styles.taskIcon}>
-                  <Text style={styles.taskEmoji}>📚</Text>
+                  <BookOpen size={20} color="#3B82F6" />
                 </View>
                 <View style={styles.taskInfo}>
                   <Text style={styles.taskTitle}>{task.title}</Text>
@@ -224,7 +247,7 @@ export default function TasksScreen() {
           <Text style={styles.tipsTitle}>نصائح لإدارة المهام</Text>
           <View style={styles.tipCard}>
             <View style={styles.tipIcon}>
-              <Text style={styles.tipEmoji}>📅</Text>
+              <Calendar size={20} color="#F59E0B" />
             </View>
             <Text style={styles.tipText}>خطط مهامك اليومية في بداية كل يوم</Text>
           </View>
@@ -248,11 +271,13 @@ export default function TasksScreen() {
             </View>
 
             <TextInput
-              style={styles.modalInput}
+              style={styles.modalTitleInput}
               placeholder="عنوان المهمة..."
               value={newTask.title}
               onChangeText={(text) => setNewTask({...newTask, title: text})}
               textAlign="right"
+              multiline
+              numberOfLines={3}
             />
 
             <View style={styles.typeSelector}>
@@ -275,6 +300,47 @@ export default function TasksScreen() {
               ))}
             </View>
 
+            {/* Time Selection for Daily Tasks */}
+            {newTask.type === 'daily' && (
+              <View style={styles.periodSelector}>
+                <Text style={styles.selectorLabel}>الفترة الزمنية</Text>
+                <TouchableOpacity 
+                  style={styles.dropdownButton}
+                  onPress={() => setShowPeriodModal(true)}
+                >
+                  <Text style={styles.dropdownText}>
+                    {newTask.period === 'morning' ? 'صباحاً' : 'مساءً'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Day Selection for Weekly Tasks */}
+            {newTask.type === 'weekly' && (
+              <View style={styles.periodSelector}>
+                <Text style={styles.selectorLabel}>اليوم</Text>
+                <TouchableOpacity 
+                  style={styles.dropdownButton}
+                  onPress={() => setShowDayModal(true)}
+                >
+                  <Text style={styles.dropdownText}>{newTask.day}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Month Selection for Monthly Tasks */}
+            {newTask.type === 'monthly' && (
+              <View style={styles.periodSelector}>
+                <Text style={styles.selectorLabel}>الشهر</Text>
+                <TouchableOpacity 
+                  style={styles.dropdownButton}
+                  onPress={() => setShowMonthModal(true)}
+                >
+                  <Text style={styles.dropdownText}>{newTask.month}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <TextInput
               style={styles.modalInput}
               placeholder="الوقت (مثال: 08:00)"
@@ -286,6 +352,105 @@ export default function TasksScreen() {
             <TouchableOpacity style={styles.saveButton} onPress={addTask}>
               <Text style={styles.saveButtonText}>حفظ المهمة</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Period Selection Modal */}
+      <Modal
+        visible={showPeriodModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPeriodModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>اختر الفترة الزمنية</Text>
+              <TouchableOpacity onPress={() => setShowPeriodModal(false)}>
+                <X size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setNewTask({...newTask, period: 'morning'});
+                setShowPeriodModal(false);
+              }}
+            >
+              <Text style={styles.modalOptionText}>صباحاً</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setNewTask({...newTask, period: 'evening'});
+                setShowPeriodModal(false);
+              }}
+            >
+              <Text style={styles.modalOptionText}>مساءً</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Day Selection Modal */}
+      <Modal
+        visible={showDayModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDayModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>اختر اليوم</Text>
+              <TouchableOpacity onPress={() => setShowDayModal(false)}>
+                <X size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            {days.map((day) => (
+              <TouchableOpacity
+                key={day}
+                style={styles.modalOption}
+                onPress={() => {
+                  setNewTask({...newTask, day});
+                  setShowDayModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{day}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Month Selection Modal */}
+      <Modal
+        visible={showMonthModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowMonthModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>اختر الشهر</Text>
+              <TouchableOpacity onPress={() => setShowMonthModal(false)}>
+                <X size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            {months.map((month) => (
+              <TouchableOpacity
+                key={month}
+                style={styles.modalOption}
+                onPress={() => {
+                  setNewTask({...newTask, month});
+                  setShowMonthModal(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{month}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </Modal>
@@ -374,7 +539,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
     marginBottom: 16,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   categoriesContainer: {
     flexDirection: 'row',
@@ -447,11 +612,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  taskEmoji: {
-    fontSize: 20,
-  },
+
   taskInfo: {
-    flex: 1,
+  
   },
   taskTitle: {
     fontSize: 16,
@@ -472,7 +635,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start',
   },
   taskBadgeText: {
     fontSize: 10,
@@ -506,7 +669,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
     marginBottom: 12,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   tipCard: {
     backgroundColor: '#A2E9C1',
@@ -601,5 +764,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Tajawal_700Bold',
     color: '#FFFFFF',
+  },
+  modalTitleInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 18,
+    fontFamily: 'Tajawal_400Regular',
+    marginBottom: 16,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  periodSelector: {
+    marginBottom: 16,
+  },
+  selectorLabel: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#374151',
+    marginBottom: 8,
+    textAlign: 'left',
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+  },
+  dropdownText: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+    textAlign: 'left',
+  },
+  modalOption: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+    textAlign: 'left',
   },
 });

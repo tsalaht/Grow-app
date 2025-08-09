@@ -60,7 +60,7 @@ export default function LoginScreen() {
             <View style={styles.logoContainer}>
               <Text style={styles.logoText}>GrowUp</Text>
               <View style={styles.logoIcon}>
-                <Text style={styles.plantEmoji}>🌱</Text>
+                <Sprout size={24} color="#FFFFFF" />
               </View>
             </View>
             <Text style={styles.subtitle}>نمو وتطوير ذاتي</Text>
@@ -160,9 +160,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  plantEmoji: {
-    fontSize: 20,
-  },
+
   subtitle: {
     fontSize: 16,
     fontFamily: 'Tajawal_400Regular',

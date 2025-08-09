@@ -8,7 +8,7 @@ import {
   SafeAreaView,
   I18nManager,
 } from 'react-native';
-import { TrendingUp, Flame, Check, Plus } from 'lucide-react-native';
+import { TrendingUp, Flame, Check, Plus, PartyPopper } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
 
@@ -212,7 +212,9 @@ export default function DailyHabitsScreen() {
 
         {completedHabits === totalHabits && totalHabits > 0 && (
           <View style={styles.celebrationCard}>
-            <Text style={styles.celebrationEmoji}>🎉</Text>
+            <View style={styles.celebrationIcon}>
+              <PartyPopper size={24} color="#F59E0B" />
+            </View>
             <Text style={styles.celebrationTitle}>مبروك!</Text>
             <Text style={styles.celebrationText}>
               لقد أكملت جميع عاداتك اليوم. استمر في هذا الإنجاز الرائع!
@@ -428,8 +430,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#095028',
   },
-  celebrationEmoji: {
-    fontSize: 32,
+  celebrationIcon: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   celebrationTitle: {
     fontSize: 18,

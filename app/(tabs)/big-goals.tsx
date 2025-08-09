@@ -7,16 +7,13 @@ import {
   TouchableOpacity,
   SafeAreaView,
   TextInput,
-  I18nManager,
   Alert,
   Modal,
+  Platform,
 } from 'react-native';
-import { Trophy, Plus, Target, Calendar, DollarSign, ChevronDown, X } from 'lucide-react-native';
+import { Trophy, Plus, Target, Calendar, DollarSign, ChevronDown, X, Heart, Car, Home, Briefcase, GraduationCap, Edit } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
-
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
 
 interface BigGoal {
   id: string;
@@ -34,12 +31,12 @@ interface BigGoal {
 }
 
 const goalTypes = [
-  { id: 'marriage', name: 'الزواج', emoji: '💍' },
-  { id: 'car', name: 'شراء سيارة', emoji: '🚗' },
-  { id: 'house', name: 'شراء منزل', emoji: '🏠' },
-  { id: 'business', name: 'بدء مشروع', emoji: '💼' },
-  { id: 'education', name: 'التعليم', emoji: '🎓' },
-  { id: 'other', name: 'أخرى', emoji: '🎯' },
+  { id: 'marriage', name: 'الزواج', icon: <Heart size={20} color="#EC4899" /> },
+  { id: 'car', name: 'شراء سيارة', icon: <Car size={20} color="#3B82F6" /> },
+  { id: 'house', name: 'شراء منزل', icon: <Home size={20} color="#10B981" /> },
+  { id: 'business', name: 'بدء مشروع', icon: <Briefcase size={20} color="#F59E0B" /> },
+  { id: 'education', name: 'التعليم', icon: <GraduationCap size={20} color="#8B5CF6" /> },
+  { id: 'other', name: 'أخرى', icon: <Target size={20} color="#6B7280" /> },
 ];
 
 const months = [
@@ -53,6 +50,7 @@ const years = Array.from({ length: 20 }, (_, i) => new Date().getFullYear() + i)
 export default function BigGoalsScreen() {
   const [goals, setGoals] = useState<BigGoal[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [showGoalTypeModal, setShowGoalTypeModal] = useState(false);
   const [showDayModal, setShowDayModal] = useState(false);
   const [showMonthModal, setShowMonthModal] = useState(false);
@@ -71,6 +69,9 @@ export default function BigGoalsScreen() {
       year: 2025,
     }
   });
+
+  const [editingGoal, setEditingGoal] = useState<BigGoal | null>(null);
+  const [editMonthlyAmount, setEditMonthlyAmount] = useState('');
 
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
@@ -91,6 +92,38 @@ export default function BigGoalsScreen() {
         year: 2025,
       }
     });
+  };
+
+  const calculateYearsRemaining = (goal: BigGoal) => {
+    const targetDate = new Date(goal.targetDate.year, months.indexOf(goal.targetDate.month), goal.targetDate.day);
+    const currentDate = new Date();
+    const timeDiff = targetDate.getTime() - currentDate.getTime();
+    const daysDiff = timeDiff / (1000 * 3600 * 24);
+    const monthsDiff = daysDiff / 30.44; // Average days per month
+    const yearsDiff = monthsDiff / 12;
+    return Math.max(0, Math.ceil(yearsDiff));
+  };
+
+  const calculateMonthsToGoal = (goal: BigGoal) => {
+    const remainingAmount = goal.totalCost - goal.currentAmount;
+    if (goal.monthlyAmount <= 0) return Infinity;
+    return Math.ceil(remainingAmount / goal.monthlyAmount);
+  };
+
+  const formatTimeToGoal = (months: number) => {
+    if (months === Infinity) return 'لا يمكن الوصول بالمدخرات الحالية';
+    if (months === 0) return 'تم الوصول للهدف';
+    
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+    
+    if (years === 0) {
+      return `${months} شهر للوصول`;
+    } else if (remainingMonths === 0) {
+      return `${years} سنة للوصول`;
+    } else {
+      return `${years} سنة و ${remainingMonths} شهر للوصول`;
+    }
   };
 
   const saveGoal = async () => {
@@ -126,9 +159,46 @@ export default function BigGoalsScreen() {
     Alert.alert('تم الحفظ', 'تم إضافة الهدف بنجاح');
   };
 
+  const openEditModal = (goal: BigGoal) => {
+    setEditingGoal(goal);
+    setEditMonthlyAmount(goal.monthlyAmount.toString());
+    setShowEditForm(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editingGoal) return;
+
+    const newMonthlyAmount = parseFloat(editMonthlyAmount) || 0;
+    
+    const updatedGoal = {
+      ...editingGoal,
+      monthlyAmount: newMonthlyAmount,
+    };
+
+    const updatedGoals = goals.map(goal => 
+      goal.id === editingGoal.id ? updatedGoal : goal
+    );
+
+    setGoals(updatedGoals);
+    setShowEditForm(false);
+    setEditingGoal(null);
+    setEditMonthlyAmount('');
+
+    // تحديث الإشعارات
+    try {
+      if (newMonthlyAmount > 0) {
+        await notificationService.scheduleBigGoalSavingReminder(updatedGoal);
+      }
+    } catch (error) {
+      console.error('خطأ في تحديث إشعار الهدف الكبير:', error);
+    }
+
+    Alert.alert('تم التحديث', 'تم تحديث المبلغ الشهري بنجاح');
+  };
+
   const getSelectedGoalType = () => {
     const selected = goalTypes.find(type => type.id === newGoal.type);
-    return selected ? `${selected.emoji} ${selected.name}` : 'اختر نوع الهدف';
+    return selected ? selected.name : 'اختر نوع الهدف';
   };
 
   if (!fontsLoaded) {
@@ -168,15 +238,19 @@ export default function BigGoalsScreen() {
             <ChevronDown size={20} color="#6B7280" />
           </TouchableOpacity>
 
-          {/* اسم الهدف */}
-          <Text style={styles.fieldLabel}>اسم الهدف</Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="مثال: شراء سيارة تويوتا كامري"
-            value={newGoal.name}
-            onChangeText={(text) => setNewGoal({...newGoal, name: text})}
-            textAlign="right"
-          />
+          {/* اسم الهدف - يظهر فقط عند اختيار "أخرى" أو عندما لا يتم اختيار نوع */}
+          {(!newGoal.type || newGoal.type === 'other') && (
+            <>
+              <Text style={styles.fieldLabel}>اسم الهدف</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="مثال: شراء سيارة تويوتا كامري"
+                value={newGoal.name}
+                onChangeText={(text) => setNewGoal({...newGoal, name: text})}
+                textAlign="right"
+              />
+            </>
+          )}
 
           {/* تكلفة الهدف */}
           <Text style={styles.fieldLabel}>تكلفة الهدف (ريال)</Text>
@@ -260,13 +334,20 @@ export default function BigGoalsScreen() {
                   key={type.id}
                   style={styles.modalOption}
                   onPress={() => {
-                    setNewGoal({...newGoal, type: type.id});
+                    // إذا كان النوع المختار ليس "أخرى"، استخدم اسم النوع كاسم الهدف
+                    const goalName = type.id === 'other' ? '' : type.name;
+                    setNewGoal({
+                      ...newGoal, 
+                      type: type.id,
+                      name: goalName
+                    });
                     setShowGoalTypeModal(false);
                   }}
                 >
-                  <Text style={styles.modalOptionText}>
-                    {type.emoji} {type.name}
-                  </Text>
+                  <View style={styles.modalOptionContent}>
+                    <View style={styles.modalOptionIcon}>{type.icon}</View>
+                    <Text style={styles.modalOptionText}>{type.name}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -367,6 +448,65 @@ export default function BigGoalsScreen() {
     );
   }
 
+  // Edit Modal
+  if (showEditForm && editingGoal) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => {
+              setShowEditForm(false);
+              setEditingGoal(null);
+              setEditMonthlyAmount('');
+            }}
+          >
+            <X size={24} color="#374151" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>تعديل المبلغ الشهري</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        <View style={styles.formContainer}>
+          <View style={styles.editGoalInfo}>
+            <Text style={styles.editGoalName}>{editingGoal.name}</Text>
+            <Text style={styles.editGoalAmount}>
+              {editingGoal.currentAmount.toLocaleString()} من {editingGoal.totalCost.toLocaleString()} ريال
+            </Text>
+          </View>
+
+          <Text style={styles.fieldLabel}>المبلغ الشهري الجديد (ريال)</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="أدخل المبلغ الشهري الجديد"
+            value={editMonthlyAmount}
+            onChangeText={setEditMonthlyAmount}
+            keyboardType="numeric"
+            textAlign="right"
+          />
+
+          {parseFloat(editMonthlyAmount) > 0 && (
+            <View style={styles.calculationInfo}>
+              <Text style={styles.calculationText}>
+                المبلغ المتبقي: {(editingGoal.totalCost - editingGoal.currentAmount).toLocaleString()} ريال
+              </Text>
+              <Text style={styles.calculationText}>
+                عدد الأشهر المطلوبة: {calculateMonthsToGoal({...editingGoal, monthlyAmount: parseFloat(editMonthlyAmount)})} شهر
+              </Text>
+                             <Text style={styles.calculationText}>
+                 الوقت المطلوب: {formatTimeToGoal(calculateMonthsToGoal({...editingGoal, monthlyAmount: parseFloat(editMonthlyAmount)}))}
+               </Text>
+            </View>
+          )}
+        </View>
+
+        <TouchableOpacity style={styles.saveButton} onPress={saveEdit}>
+          <Text style={styles.saveButtonText}>حفظ التعديل</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainHeader}>
@@ -405,15 +545,23 @@ export default function BigGoalsScreen() {
             {goals.map((goal) => {
               const progress = goal.totalCost > 0 ? (goal.currentAmount / goal.totalCost) * 100 : 0;
               const selectedType = goalTypes.find(type => type.id === goal.type);
+              const yearsRemaining = calculateYearsRemaining(goal);
+              const monthsToGoal = calculateMonthsToGoal(goal);
               
               return (
                 <View key={goal.id} style={styles.goalCard}>
                   <View style={styles.goalHeader}>
-                    <Text style={styles.goalEmoji}>{selectedType?.emoji}</Text>
+                    <View style={styles.goalIcon}>{selectedType?.icon}</View>
                     <View style={styles.goalInfo}>
                       <Text style={styles.goalName}>{goal.name}</Text>
                       <Text style={styles.goalType}>{selectedType?.name}</Text>
                     </View>
+                    <TouchableOpacity 
+                      style={styles.editButton}
+                      onPress={() => openEditModal(goal)}
+                    >
+                      <Edit size={16} color="#6B7280" />
+                    </TouchableOpacity>
                     <Text style={styles.goalProgress}>{progress.toFixed(0)}%</Text>
                   </View>
 
@@ -433,12 +581,24 @@ export default function BigGoalsScreen() {
                   </View>
 
                   <View style={styles.goalFooter}>
-                    <Text style={styles.targetDate}>
-                      الهدف: {goal.targetDate.day} {goal.targetDate.month} {goal.targetDate.year}
-                    </Text>
-                    <Text style={styles.monthlyAmount}>
-                      شهرياً: {goal.monthlyAmount.toLocaleString()} رس
-                    </Text>
+                    <View style={styles.goalFooterLeft}>
+                      <Text style={styles.targetDate}>
+                        الهدف: {goal.targetDate.day} {goal.targetDate.month} {goal.targetDate.year}
+                      </Text>
+                      <Text style={styles.yearsRemaining}>
+                        {yearsRemaining > 0 ? `${yearsRemaining} سنة متبقية` : 'الموعد النهائي قد حان'}
+                      </Text>
+                    </View>
+                    <View style={styles.goalFooterRight}>
+                      <Text style={styles.monthlyAmount}>
+                        شهرياً: {goal.monthlyAmount.toLocaleString()} رس
+                      </Text>
+                                             {goal.monthlyAmount > 0 && (
+                         <Text style={styles.monthsToGoal}>
+                           {formatTimeToGoal(monthsToGoal)}
+                         </Text>
+                       )}
+                    </View>
                   </View>
                 </View>
               );
@@ -521,13 +681,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
   },
+  editGoalInfo: {
+    backgroundColor: '#F3F4F6',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  editGoalName: {
+    fontSize: 18,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#1F2937',
+    textAlign: 'right',
+    marginBottom: 8,
+  },
+  editGoalAmount: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#6B7280',
+    textAlign: 'right',
+  },
+  calculationInfo: {
+    backgroundColor: '#E0F2FE',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  calculationText: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#0C4A6E',
+    textAlign: 'right',
+    marginBottom: 4,
+  },
   fieldLabel: {
     fontSize: 16,
     fontFamily: 'Tajawal_500Medium',
     color: '#374151',
     marginBottom: 8,
     marginTop: 16,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   dropdownButton: {
     flexDirection: 'row',
@@ -545,7 +737,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_400Regular',
     color: '#374151',
     flex: 1,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   placeholderText: {
     color: '#9CA3AF',
@@ -559,6 +751,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_400Regular',
     backgroundColor: '#FFFFFF',
     marginBottom: 8,
+    textAlign: 'left',
   },
   dateContainer: {
     flexDirection: 'row',
@@ -621,6 +814,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
+  modalOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  modalOptionIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   modalOptionText: {
     fontSize: 16,
     fontFamily: 'Tajawal_400Regular',
@@ -676,8 +881,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  goalEmoji: {
-    fontSize: 24,
+  goalIcon: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   goalInfo: {
@@ -695,6 +903,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_400Regular',
     color: '#6B7280',
     textAlign: 'right',
+  },
+  editButton: {
+    padding: 8,
+    marginRight: 8,
   },
   goalProgress: {
     fontSize: 18,
@@ -731,16 +943,38 @@ const styles = StyleSheet.create({
   goalFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  goalFooterLeft: {
+    flex: 1,
+  },
+  goalFooterRight: {
+    alignItems: 'flex-end',
   },
   targetDate: {
     fontSize: 12,
     fontFamily: 'Tajawal_400Regular',
     color: '#6B7280',
+    textAlign: 'right',
+    marginBottom: 4,
+  },
+  yearsRemaining: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#DC2626',
+    textAlign: 'right',
   },
   monthlyAmount: {
     fontSize: 12,
     fontFamily: 'Tajawal_500Medium',
     color: '#095028',
+    textAlign: 'right',
+    marginBottom: 4,
+  },
+  monthsToGoal: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#6B7280',
+    textAlign: 'right',
   },
 });

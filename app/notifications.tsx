@@ -8,15 +8,11 @@ import {
   SafeAreaView,
   Switch,
   Alert,
-  I18nManager,
+  Platform,
 } from 'react-native';
-import { Bell, BellOff, Settings, Trash2, Clock, Calendar, DollarSign, Target, TrendingUp, Brain, Plus, Check, X } from 'lucide-react-native';
+import { Bell, BellOff, Settings, Trash2, Clock, Calendar, DollarSign, Target, TrendingUp, Brain, Plus, Check, X, CreditCard, CheckCircle, TrendingUp as TrendingUpIcon, Brain as BrainIcon } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
-import * as Notifications from 'expo-notifications';
 import NotificationService from '@/services/NotificationService';
-
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
 
 interface NotificationSetting {
   id: string;
@@ -39,101 +35,96 @@ interface ScheduledNotification {
 
 export default function NotificationsScreen() {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSetting[]>([
-    // الإشعارات المالية
+    // إعدادات مالية
     {
-      id: 'monthly-income',
-      title: 'تذكير الراتب الشهري',
-      description: 'إشعار في أول كل شهر لإدخال الراتب',
+      id: 'daily-expense-reminder',
+      title: 'تذكير المصروفات اليومية',
+      description: 'تذكير لتسجيل مصروفاتك اليومية',
       icon: <DollarSign size={20} color="#10B981" />,
-      enabled: true,
+      enabled: false,
       category: 'finance',
       color: '#10B981',
     },
     {
-      id: 'commitment-reminders',
-      title: 'تذكير الالتزامات المالية',
-      description: 'إشعار قبل موعد دفع الالتزامات بيوم',
-      icon: <Calendar size={20} color="#F59E0B" />,
-      enabled: true,
+      id: 'budget-review',
+      title: 'مراجعة الميزانية الأسبوعية',
+      description: 'تذكير لمراجعة ميزانيتك الأسبوعية',
+      icon: <CreditCard size={20} color="#10B981" />,
+      enabled: false,
       category: 'finance',
-      color: '#F59E0B',
+      color: '#10B981',
     },
+    // إعدادات المهام
     {
-      id: 'expense-warnings',
-      title: 'تحذير المصروفات',
-      description: 'إشعار عند تجاوز 50% من الراتب',
-      icon: <Bell size={20} color="#EF4444" />,
-      enabled: true,
-      category: 'finance',
-      color: '#EF4444',
-    },
-    
-    // إشعارات المهام
-    {
-      id: 'daily-tasks',
-      title: 'المهام اليومية',
-      description: 'تذكير بالمهام اليومية في الأوقات المحددة',
-      icon: <Clock size={20} color="#3B82F6" />,
-      enabled: true,
+      id: 'daily-tasks-reminder',
+      title: 'تذكير المهام اليومية',
+      description: 'تذكير لمراجعة مهامك اليومية',
+      icon: <CheckCircle size={20} color="#3B82F6" />,
+      enabled: false,
       category: 'tasks',
       color: '#3B82F6',
     },
     {
-      id: 'weekly-tasks',
-      title: 'المهام الأسبوعية',
-      description: 'تذكير بالمهام الأسبوعية',
-      icon: <Calendar size={20} color="#8B5CF6" />,
-      enabled: true,
+      id: 'task-completion',
+      title: 'تأكيد إنجاز المهام',
+      description: 'تذكير لتأكيد إنجاز المهام المكتملة',
+      icon: <Check size={20} color="#3B82F6" />,
+      enabled: false,
       category: 'tasks',
+      color: '#3B82F6',
+    },
+    // إعدادات العادات
+    {
+      id: 'habit-tracker',
+      title: 'تتبع العادات اليومية',
+      description: 'تذكير لتتبع عاداتك اليومية',
+      icon: <TrendingUpIcon size={20} color="#8B5CF6" />,
+      enabled: false,
+      category: 'habits',
       color: '#8B5CF6',
     },
     {
-      id: 'monthly-tasks',
-      title: 'المهام الشهرية',
-      description: 'تذكير بالمهام الشهرية',
-      icon: <Calendar size={20} color="#EC4899" />,
-      enabled: true,
-      category: 'tasks',
-      color: '#EC4899',
-    },
-    
-    // إشعارات العادات
-    {
-      id: 'daily-habits',
-      title: 'العادات اليومية',
-      description: 'تذكير بالعادات اليومية',
-      icon: <TrendingUp size={20} color="#10B981" />,
-      enabled: true,
+      id: 'habit-review',
+      title: 'مراجعة العادات الأسبوعية',
+      description: 'تذكير لمراجعة تقدمك في العادات',
+      icon: <TrendingUp size={20} color="#8B5CF6" />,
+      enabled: false,
       category: 'habits',
-      color: '#10B981',
+      color: '#8B5CF6',
     },
-    
-    // إشعارات الأهداف الكبيرة
+    // إعدادات الأهداف
     {
-      id: 'big-goals-saving',
-      title: 'ادخار الأهداف الكبيرة',
-      description: 'تذكير شهري بادخار المبلغ المحدد',
+      id: 'goal-progress',
+      title: 'تتبع تقدم الأهداف',
+      description: 'تذكير لتتبع تقدمك في الأهداف',
       icon: <Target size={20} color="#F59E0B" />,
-      enabled: true,
+      enabled: false,
       category: 'goals',
       color: '#F59E0B',
     },
-    
-    // إشعارات الملاحظات الذكية
     {
-      id: 'smart-notes',
-      title: 'الملاحظات الذكية',
-      description: 'تذكير بالملاحظات حسب الإعدادات',
-      icon: <Brain size={20} color="#EC4899" />,
-      enabled: true,
+      id: 'goal-review',
+      title: 'مراجعة الأهداف الشهرية',
+      description: 'تذكير لمراجعة أهدافك الشهرية',
+      icon: <Calendar size={20} color="#F59E0B" />,
+      enabled: false,
+      category: 'goals',
+      color: '#F59E0B',
+    },
+    // إعدادات الملاحظات
+    {
+      id: 'smart-notes-reminder',
+      title: 'تذكير الملاحظات الذكية',
+      description: 'تذكير لمراجعة ملاحظاتك الذكية',
+      icon: <BrainIcon size={20} color="#EC4899" />,
+      enabled: false,
       category: 'notes',
       color: '#EC4899',
     },
   ]);
 
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
-  const [permissionStatus, setPermissionStatus] = useState<string>('unknown');
-  const [notificationService] = useState(() => NotificationService.getInstance());
+  const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'not-determined'>('not-determined');
 
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
@@ -143,41 +134,37 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     initializeNotifications();
-    loadScheduledNotifications();
   }, []);
 
   const initializeNotifications = async () => {
     try {
-      // طلب الأذونات
-      const token = await notificationService.registerForPushNotifications();
+      const service = NotificationService.getInstance();
+      const token = await service.registerForPushNotifications();
       if (token) {
         setPermissionStatus('granted');
+        await loadScheduledNotifications();
       } else {
         setPermissionStatus('denied');
       }
-
-      // إعداد معالج الإشعارات
-      NotificationService.setupNotificationHandler();
     } catch (error) {
       console.error('خطأ في تهيئة الإشعارات:', error);
-      setPermissionStatus('error');
     }
   };
 
   const loadScheduledNotifications = async () => {
     try {
-      const scheduled = await notificationService.getScheduledNotifications();
-      const formattedNotifications: ScheduledNotification[] = scheduled.map(notification => ({
+      const service = NotificationService.getInstance();
+      const notifications = await service.getScheduledNotifications();
+      const formattedNotifications: ScheduledNotification[] = notifications.map(notification => ({
         id: notification.identifier,
         title: notification.content.title || '',
         body: notification.content.body || '',
         nextTriggerDate: notification.trigger && typeof notification.trigger === 'object' && 'date' in notification.trigger 
           ? new Date(notification.trigger.date as any) 
           : null,
-        category: notification.content.data?.type || 'general',
+        category: (notification.content.data?.type as string) || 'general',
         enabled: true,
       }));
-      
       setScheduledNotifications(formattedNotifications);
     } catch (error) {
       console.error('خطأ في تحميل الإشعارات المجدولة:', error);
@@ -185,23 +172,19 @@ export default function NotificationsScreen() {
   };
 
   const toggleNotificationSetting = async (settingId: string) => {
-    const updatedSettings = notificationSettings.map(setting => {
-      if (setting.id === settingId) {
-        return { ...setting, enabled: !setting.enabled };
-      }
-      return setting;
-    });
+    const updatedSettings = notificationSettings.map(setting => 
+      setting.id === settingId 
+        ? { ...setting, enabled: !setting.enabled }
+        : setting
+    );
     
     setNotificationSettings(updatedSettings);
-
-    // هنا يمكن إضافة منطق تفعيل/إلغاء الإشعارات الفعلية
+    
     const setting = updatedSettings.find(s => s.id === settingId);
     if (setting) {
       if (setting.enabled) {
-        // تفعيل الإشعار
         await scheduleNotificationBySetting(setting);
       } else {
-        // إلغاء الإشعار
         await cancelNotificationBySetting(setting);
       }
     }
@@ -209,48 +192,43 @@ export default function NotificationsScreen() {
 
   const scheduleNotificationBySetting = async (setting: NotificationSetting) => {
     try {
-      switch (setting.id) {
-        case 'monthly-income':
-          await notificationService.scheduleMonthlyIncomeReminder();
-          break;
-        // يمكن إضافة المزيد من الحالات هنا
-      }
-      Alert.alert('تم التفعيل', `تم تفعيل ${setting.title} بنجاح`);
+      const service = NotificationService.getInstance();
+      await service.scheduleNotification({
+        id: setting.id,
+        title: setting.title,
+        body: setting.description,
+        data: { category: setting.category },
+        trigger: { seconds: 60, repeats: false } as any, // تذكير بعد دقيقة للاختبار
+      });
+      
+      await loadScheduledNotifications();
     } catch (error) {
-      Alert.alert('خطأ', 'فشل في تفعيل الإشعار');
+      console.error('خطأ في جدولة الإشعار:', error);
     }
   };
 
   const cancelNotificationBySetting = async (setting: NotificationSetting) => {
     try {
-      // إلغاء الإشعارات المرتبطة بهذا الإعداد
-      const scheduled = await notificationService.getScheduledNotifications();
-      const relatedNotifications = scheduled.filter(n => 
-        n.content.data?.type === setting.id.replace('-', '_')
-      );
-      
-      for (const notification of relatedNotifications) {
-        await notificationService.cancelNotification(notification.identifier);
-      }
-      
-      Alert.alert('تم الإلغاء', `تم إلغاء ${setting.title} بنجاح`);
+      const service = NotificationService.getInstance();
+      await service.cancelNotification(setting.id);
+      await loadScheduledNotifications();
     } catch (error) {
-      Alert.alert('خطأ', 'فشل في إلغاء الإشعار');
+      console.error('خطأ في إلغاء الإشعار:', error);
     }
   };
 
   const requestPermissions = async () => {
     try {
-      const token = await notificationService.registerForPushNotifications();
+      const service = NotificationService.getInstance();
+      const token = await service.registerForPushNotifications();
       if (token) {
         setPermissionStatus('granted');
-        Alert.alert('تم بنجاح', 'تم منح أذونات الإشعارات');
+        await loadScheduledNotifications();
       } else {
         setPermissionStatus('denied');
-        Alert.alert('فشل', 'لم يتم منح أذونات الإشعارات');
       }
     } catch (error) {
-      Alert.alert('خطأ', 'حدث خطأ في طلب الأذونات');
+      console.error('خطأ في طلب الأذونات:', error);
     }
   };
 
@@ -260,15 +238,16 @@ export default function NotificationsScreen() {
       'هل أنت متأكد من مسح جميع الإشعارات المجدولة؟',
       [
         { text: 'إلغاء', style: 'cancel' },
-        { 
-          text: 'مسح', 
-          style: 'destructive', 
-          onPress: async () => {
-            await notificationService.cancelAllNotifications();
+        { text: 'مسح', style: 'destructive', onPress: async () => {
+          try {
+            const service = NotificationService.getInstance();
+            await service.cancelAllNotifications();
             setScheduledNotifications([]);
-            Alert.alert('تم المسح', 'تم مسح جميع الإشعارات المجدولة');
+            Alert.alert('تم المسح', 'تم مسح جميع الإشعارات بنجاح');
+          } catch (error) {
+            console.error('خطأ في مسح الإشعارات:', error);
           }
-        },
+        }},
       ]
     );
   };
@@ -285,17 +264,16 @@ export default function NotificationsScreen() {
     switch (permissionStatus) {
       case 'granted': return 'مفعلة';
       case 'denied': return 'مرفوضة';
-      case 'error': return 'خطأ';
-      default: return 'غير معروفة';
+      default: return 'غير محددة';
     }
   };
 
   const categories = [
-    { id: 'finance', name: 'المالية', emoji: '💰', color: '#10B981' },
-    { id: 'tasks', name: 'المهام', emoji: '✅', color: '#3B82F6' },
-    { id: 'habits', name: 'العادات', emoji: '📈', color: '#8B5CF6' },
-    { id: 'goals', name: 'الأهداف', emoji: '🎯', color: '#F59E0B' },
-    { id: 'notes', name: 'الملاحظات', emoji: '🧠', color: '#EC4899' },
+    { id: 'finance', name: 'المالية', icon: <DollarSign size={20} color="#10B981" />, color: '#10B981' },
+    { id: 'tasks', name: 'المهام', icon: <CheckCircle size={20} color="#3B82F6" />, color: '#3B82F6' },
+    { id: 'habits', name: 'العادات', icon: <TrendingUpIcon size={20} color="#8B5CF6" />, color: '#8B5CF6' },
+    { id: 'goals', name: 'الأهداف', icon: <Target size={20} color="#F59E0B" />, color: '#F59E0B' },
+    { id: 'notes', name: 'الملاحظات', icon: <BrainIcon size={20} color="#EC4899" />, color: '#EC4899' },
   ];
 
   if (!fontsLoaded) {
@@ -370,7 +348,7 @@ export default function NotificationsScreen() {
           return (
             <View key={category.id} style={styles.categorySection}>
               <View style={styles.categoryHeader}>
-                <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                <View style={styles.categoryEmoji}>{category.icon}</View>
                 <Text style={[styles.categoryTitle, { color: category.color }]}>
                   {category.name}
                 </Text>
@@ -453,7 +431,8 @@ export default function NotificationsScreen() {
                   <TouchableOpacity 
                     style={styles.cancelButton}
                     onPress={async () => {
-                      await notificationService.cancelNotification(notification.id);
+                      const service = NotificationService.getInstance();
+                      await service.cancelNotification(notification.id);
                       setScheduledNotifications(prev => 
                         prev.filter(n => n.id !== notification.id)
                       );
@@ -614,7 +593,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   categoryEmoji: {
-    fontSize: 20,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   categoryTitle: {
     fontSize: 18,

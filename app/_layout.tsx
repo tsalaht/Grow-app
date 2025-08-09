@@ -37,12 +37,13 @@ export default function RootLayout() {
   return (
     <MyAppProvider>
       <Stack 
-        initialRouteName="login"
+        initialRouteName="onboarding"
         screenOptions={{ 
           headerShown: false,
           animation: 'slide_from_right', // RTL animation
         }}
       >
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="login" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="profile" />

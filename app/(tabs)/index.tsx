@@ -27,6 +27,7 @@ import {
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import { useMyAppContext } from '@/context/MyAppContext';
 import { useRouter } from 'expo-router';
+import Logo from '../Logo';
 
 // Enable RTL for Arabic
 I18nManager.allowRTL(true);
@@ -107,19 +108,20 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <LinearGradient colors={["#A2E9C1", "#3B82F6"]} start={{x: 0, y: 0}} end={{x: 1, y: 0}} style={styles.headerGradient}>
+        <LinearGradient colors={["#A2E9C1", "#A2E9C1"]} start={{x: 0, y: 0}} end={{x: 1, y: 0}} style={styles.headerGradient}>
           <View style={styles.headerContent}>
             <View style={styles.headerIcons}>
               <TouchableOpacity onPress={() => router.push('/profile')} style={styles.iconButton}>
-                <User size={22} color="#3B82F6" />
+                <User size={22} color="#12A150" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.iconButton}>
-                <Bell size={22} color="#3B82F6" />
+                <Bell size={22} color="#12A150" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.appTitle}>نمو</Text>
+            <Logo/>
+            {/* <Text style={styles.appTitle}>نمو</Text> */}
           </View>
-          <Text style={styles.greeting}>{getGreeting()}، {username}</Text>
+          {/* <Text style={styles.greeting}>{getGreeting()}، {username}</Text> */}
         </LinearGradient>
 
         {/* Dashboard Cards */}

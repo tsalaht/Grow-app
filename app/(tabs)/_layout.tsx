@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
 import { useFonts, Tajawal_400Regular } from '@expo-google-fonts/tajawal';
+import { Home, Target, TrendingUp, CreditCard, Trophy, Brain } from 'lucide-react-native';
 
 export default function TabLayout() {
   const [fontsLoaded] = useFonts({
@@ -16,7 +17,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: '#095028',
+        tabBarActiveTintColor: '#12A150',
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarLabelStyle: styles.tabBarLabel,
       }}>
@@ -24,17 +25,17 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'الرئيسية',
-          tabBarIcon: ({ size, color }) => (
-            <Text style={{ fontSize: size }}>🏠</Text>
+          tabBarIcon: ({ size, color, focused }) => (
+            <Home size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
       <Tabs.Screen
         name="daily-goals"
         options={{
-          title: 'الأهداف اليومية',
-          tabBarIcon: ({ size, color }) => (
-            <Text style={{ fontSize: size }}>🎯</Text>
+          title: 'المهام',
+          tabBarIcon: ({ size, color, focused }) => (
+            <Target size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -42,8 +43,8 @@ export default function TabLayout() {
         name="daily-habits"
         options={{
           title: 'العادات اليومية',
-          tabBarIcon: ({ size, color }) => (
-            <Text style={{ fontSize: size }}>📈</Text>
+          tabBarIcon: ({ size, color, focused }) => (
+            <TrendingUp size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -51,8 +52,8 @@ export default function TabLayout() {
         name="finance"
         options={{
           title: 'المالية',
-          tabBarIcon: ({ size, color }) => (
-            <Text style={{ fontSize: size }}>💳</Text>
+          tabBarIcon: ({ size, color, focused }) => (
+            <CreditCard size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -60,8 +61,8 @@ export default function TabLayout() {
         name="big-goals"
         options={{
           title: 'أهدافي الكبيرة',
-          tabBarIcon: ({ size, color }) => (
-            <Text style={{ fontSize: size }}>🏆</Text>
+          tabBarIcon: ({ size, color, focused }) => (
+            <Trophy size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -69,8 +70,8 @@ export default function TabLayout() {
         name="smart-notes"
         options={{
           title: 'الملاحظات الذكية',
-          tabBarIcon: ({ size, color }) => (
-            <Text style={{ fontSize: size }}>🧠</Text>
+          tabBarIcon: ({ size, color, focused }) => (
+            <Brain size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
