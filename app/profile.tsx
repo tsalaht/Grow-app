@@ -30,7 +30,7 @@ interface ProfileOption {
 }
 
 export default function ProfileScreen() {
-  const { username, setUsername } = useMyAppContext();
+  const { username, setUsername, resetAppState } = useMyAppContext();
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [userEmail] = useState('ibrahim@example.com');
@@ -56,6 +56,27 @@ export default function ProfileScreen() {
           onPress: () => {
             // هنا يتم تسجيل الخروج والعودة لشاشة تسجيل الدخول
             router.replace('/login');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetAppState = () => {
+    Alert.alert(
+      'إعادة تعيين الإعدادات',
+      'هل تريد إعادة تعيين إعدادات التطبيق والعودة لشاشة الترحيب؟',
+      [
+        {
+          text: 'إلغاء',
+          style: 'cancel',
+        },
+        {
+          text: 'إعادة تعيين',
+          style: 'destructive',
+          onPress: async () => {
+            await resetAppState();
+            router.replace('/onboarding' as any);
           },
         },
       ]
@@ -124,6 +145,13 @@ export default function ProfileScreen() {
       subtitle: 'الأسئلة الشائعة والدعم الفني',
       icon: <HelpCircle size={20} color="#095028" />,
       action: () => Alert.alert('المساعدة', 'قريباً - المساعدة والدعم'),
+    },
+    {
+      id: 'reset',
+      title: 'إعادة تعيين الإعدادات',
+      subtitle: 'العودة لشاشة الترحيب',
+      icon: <Settings size={20} color="#EF4444" />,
+      action: handleResetAppState,
     },
   ];
 

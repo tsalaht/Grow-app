@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "bolt-expo-nativewind",
+    "name": "grow",
     "slug": "grow",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,6 +8,11 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+     "splash": {
+      "image": "./assets/images/splash.png",  
+      "backgroundColor": "#12A150",         
+      "resizeMode": "contain"              
+    },
     "ios": {
       "supportsTablet": true
     },

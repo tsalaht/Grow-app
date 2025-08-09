@@ -10,13 +10,16 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { Sprout } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
+import { useMyAppContext } from '@/context/MyAppContext';
 
 // Enable RTL for Arabic
 I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
 
 export default function LoginScreen() {
+  const { setHasCompletedLogin } = useMyAppContext();
   const [isLoading, setIsLoading] = useState(false);
 
   const [fontsLoaded] = useFonts({
@@ -37,7 +40,12 @@ export default function LoginScreen() {
         [
           {
             text: 'متابعة',
-            onPress: () => router.replace('/(tabs)'),
+            onPress: async () => {
+              // Mark login as completed (for current session only)
+              setHasCompletedLogin(true);
+              // Navigate to main app
+              router.replace('/(tabs)' as any);
+            },
           },
         ]
       );

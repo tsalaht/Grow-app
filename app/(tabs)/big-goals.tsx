@@ -305,7 +305,7 @@ export default function BigGoalsScreen() {
           {/* المبلغ الشهري المخطط توفيره */}
           <Text style={styles.fieldLabel}>المبلغ الشهري المخطط توفيره (ريال)</Text>
           <TextInput
-            style={styles.textInput}
+            style={{...styles.textInput,marginBottom:40}}
             placeholder="المبلغ الشهري"
             value={newGoal.monthlyAmount}
             onChangeText={(text) => setNewGoal({...newGoal, monthlyAmount: text})}
@@ -889,7 +889,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   goalInfo: {
-    flex: 1,
+    // flex: 1,
   },
   goalName: {
     fontSize: 16,

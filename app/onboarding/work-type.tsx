@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { ArrowRight } from 'lucide-react-native';
 import Logo from '../Logo';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
+import { useMyAppContext } from '@/context/MyAppContext';
 
 const workTypes = [
   { id: 'marketing', title: 'التسويق' },
@@ -30,6 +31,7 @@ const workTypes = [
 
 export default function WorkTypeScreen() {
   const router = useRouter();
+  const { setHasCompletedOnboarding } = useMyAppContext();
   const [selectedWorkType, setSelectedWorkType] = useState<string>('');
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
@@ -42,7 +44,10 @@ export default function WorkTypeScreen() {
 
   const handleNext = () => {
     if (selectedWorkType) {
-      router.push('/(tabs)');
+      // Mark onboarding as completed (for current session only)
+      setHasCompletedOnboarding(true);
+      // Navigate to login
+      router.push('/login' as any);
     }
   };
 
