@@ -11,8 +11,8 @@ import {
   I18nManager,
   Modal,
 } from 'react-native';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, ChartBar as BarChart3, Calculator, FileText, CreditCard, Save, X, CreditCard as Edit3, Trash2 } from 'lucide-react-native';
-import { Chrome as Home, Car, Utensils, CalendarDays } from 'lucide-react-native';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, ChartBar as BarChart3, Calculator, FileText, CreditCard, Save, X, CreditCard as Edit3, Trash2, Utensils, Plane, PartyPopper, ShoppingBag, BookOpen, Heart, Receipt, Tag } from 'lucide-react-native';
+import { Chrome as Home, Car, CalendarDays } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
 
@@ -62,6 +62,22 @@ export default function FinanceScreen() {
     category: 'عام'
   });
 
+  // Expense categories with professional icons
+  const expenseCategories = [
+    { id: 'food_drink', name: 'طعام وشراب', icon: Utensils },
+    { id: 'travel', name: 'سفر', icon: Plane },
+    { id: 'enjoy', name: 'ترفيه', icon: PartyPopper },
+    { id: 'shop', name: 'تسوق', icon: ShoppingBag },
+    { id: 'learn', name: 'تعلم', icon: BookOpen },
+    { id: 'health', name: 'صحة', icon: Heart },
+    { id: 'bills', name: 'فواتير', icon: Receipt },
+    { id: 'others', name: 'أخرى', icon: Tag },
+  ];
+
+  const [selectedExpenseCategory, setSelectedExpenseCategory] = useState('');
+  const [showExpenseDropdown, setShowExpenseDropdown] = useState(false);
+  const [customExpenseCategory, setCustomExpenseCategory] = useState('');
+
   // New commitment form
   const [newCommitment, setNewCommitment] = useState({
     name: '',
@@ -96,7 +112,7 @@ export default function FinanceScreen() {
   });
 
   const currentDate = new Date();
-  const currentMonth = currentDate.toLocaleDateString('ar-SA', { month: 'long' });
+  const currentMonth = currentDate.toLocaleDateString('en-US', { month: 'long' });
   const currentYear = currentDate.getFullYear();
 
   const getCurrentMonthData = () => {
@@ -168,35 +184,68 @@ export default function FinanceScreen() {
 
   const addExpense = async () => {
     const amount = parseFloat(newExpense.amount);
-    if (!newExpense.name.trim() || isNaN(amount) || amount <= 0) {
-      Alert.alert('خطأ', 'يرجى إدخال بيانات صحيحة');
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert('خطأ', 'يرجى إدخال مبلغ صحيح');
       return;
     }
 
+    if (!selectedExpenseCategory) {
+      Alert.alert('خطأ', 'يرجى اختيار التصنيف');
+      return;
+    }
+
+    const selectedCategory = expenseCategories.find(cat => cat.id === selectedExpenseCategory);
+    const categoryName = selectedCategory?.name || 'عام';
+    
+    const expenseName = selectedExpenseCategory === 'others' 
+      ? customExpenseCategory.trim() 
+      : `${categoryName} - ${new Date().toLocaleDateString('en-EN')}`;
+
     const expense: Expense = {
       id: Date.now().toString(),
-      name: newExpense.name.trim(),
+      name: expenseName,
       amount,
-      category: newExpense.category,
+      category: categoryName,
       date: new Date()
     };
 
-    const updatedData = monthlyData.map(data => {
-      if (data.year === currentYear && data.monthNumber === currentDate.getMonth() + 1) {
-        const newExpenses = [...data.expenses, expense];
-        const totalExpenses = newExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-        const totalCommitments = data.commitments.reduce((sum, com) => sum + com.amount, 0);
-        return {
-          ...data,
-          expenses: newExpenses,
-          remaining: data.income - totalExpenses - totalCommitments
-        };
-      }
-      return data;
-    });
+    const existingMonthIndex = monthlyData.findIndex(data => 
+      data.year === currentYear && data.monthNumber === currentDate.getMonth() + 1
+    );
+
+    let updatedData = [...monthlyData];
+    
+    if (existingMonthIndex !== -1) {
+      // Update existing month
+      const existingMonth = updatedData[existingMonthIndex];
+      const newExpenses = [...existingMonth.expenses, expense];
+      const totalExpenses = newExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const totalCommitments = existingMonth.commitments.reduce((sum, com) => sum + com.amount, 0);
+      
+      updatedData[existingMonthIndex] = {
+        ...existingMonth,
+        expenses: newExpenses,
+        remaining: existingMonth.income - totalExpenses - totalCommitments
+      };
+    } else {
+      // Create new month data
+      const newMonthData: MonthlyData = {
+        year: currentYear,
+        month: currentMonth,
+        monthNumber: currentDate.getMonth() + 1,
+        income: 0,
+        expenses: [expense],
+        commitments: [],
+        remaining: -expense.amount
+      };
+      updatedData.push(newMonthData);
+    }
 
     setMonthlyData(updatedData);
     setNewExpense({ name: '', amount: '', category: 'عام' });
+    setSelectedExpenseCategory('');
+    setCustomExpenseCategory('');
+    setShowExpenseDropdown(false);
     setShowExpenseModal(false);
     
     // فحص تحذير المصروفات
@@ -568,26 +617,65 @@ export default function FinanceScreen() {
             </View>
             <TextInput
               style={styles.modalInput}
-              placeholder="اسم المصروف..."
-              value={newExpense.name}
-              onChangeText={(text) => setNewExpense({...newExpense, name: text})}
-              textAlign="right"
-            />
-            <TextInput
-              style={styles.modalInput}
               placeholder="المبلغ..."
               value={newExpense.amount}
               onChangeText={(text) => setNewExpense({...newExpense, amount: text})}
               keyboardType="numeric"
               textAlign="right"
             />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="التصنيف (اختياري)..."
-              value={newExpense.category}
-              onChangeText={(text) => setNewExpense({...newExpense, category: text})}
-              textAlign="right"
-            />
+            <Text style={styles.sectionLabel}>التصنيف</Text>
+            <TouchableOpacity
+              style={styles.dropdownButton}
+              onPress={() => setShowExpenseDropdown(!showExpenseDropdown)}
+            >
+              <View style={styles.dropdownButtonContent}>
+                {selectedExpenseCategory ? (
+                  <>
+                    {(() => {
+                      const IconComponent = expenseCategories.find(cat => cat.id === selectedExpenseCategory)?.icon;
+                      return IconComponent ? <IconComponent size={20} color="#374151" /> : null;
+                    })()}
+                    <Text style={styles.dropdownText}>
+                      {expenseCategories.find(cat => cat.id === selectedExpenseCategory)?.name}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.dropdownText}>اختر التصنيف</Text>
+                )}
+              </View>
+              <Text style={styles.dropdownArrow}>{showExpenseDropdown ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+
+            {showExpenseDropdown && (
+              <ScrollView style={styles.dropdownList} nestedScrollEnabled={true}>
+                {expenseCategories.map((category) => {
+                  const IconComponent = category.icon;
+                  return (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setSelectedExpenseCategory(category.id);
+                        setShowExpenseDropdown(false);
+                      }}
+                    >
+                      <IconComponent size={20} color="#374151" />
+                      <Text style={styles.dropdownItemText}>{category.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            )}
+
+            {selectedExpenseCategory === 'others' && (
+              <TextInput
+                style={styles.modalInput}
+                placeholder="اكتب اسم المصروف..."
+                value={customExpenseCategory}
+                onChangeText={setCustomExpenseCategory}
+                textAlign="right"
+              />
+            )}
             <TouchableOpacity style={styles.saveButton} onPress={addExpense}>
               <Plus size={20} color="#FFFFFF" />
               <Text style={styles.saveButtonText}>إضافة</Text>
@@ -691,7 +779,7 @@ export default function FinanceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#A2E9C1',
+    backgroundColor: '#F8FAFC',
   },
   header: {
     flexDirection: 'row',
@@ -875,7 +963,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
     marginBottom: 12,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   table: {
     backgroundColor: '#FFFFFF',
@@ -895,8 +983,8 @@ const styles = StyleSheet.create({
   },
   tableHeaderText: {
     flex: 1,
-    fontSize: 11,
-    fontFamily: 'Tajawal_500Medium',
+    fontSize: 12,
+    fontFamily: 'Tajawal_700Bold',
     color: '#374151',
     textAlign: 'center',
   },
@@ -909,8 +997,8 @@ const styles = StyleSheet.create({
   },
   tableCellText: {
     flex: 1,
-    fontSize: 10,
-    fontFamily: 'Tajawal_400Regular',
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
     color: '#6B7280',
     textAlign: 'center',
   },
@@ -958,13 +1046,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_500Medium',
     color: '#374151',
     marginBottom: 2,
-    textAlign: 'right',
+    textAlign: 'left',
   },
   expenseCategory: {
     fontSize: 12,
     fontFamily: 'Tajawal_400Regular',
     color: '#6B7280',
-    textAlign: 'right',
+    textAlign: 'left',
   },
   expenseAmount: {
     fontSize: 14,
@@ -1255,6 +1343,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     marginBottom: 20,
   },
+  dropdownButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
   dropdownText: {
     fontSize: 16,
     fontFamily: 'Tajawal_400Regular',
@@ -1274,6 +1368,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     marginTop: -15,
     marginBottom: 20,
+    maxHeight: 200,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -1281,9 +1376,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
+    gap: 12,
   },
   dropdownItemText: {
     fontSize: 16,

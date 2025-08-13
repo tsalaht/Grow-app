@@ -21,7 +21,7 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Logo */}
-        <Logo size="large" showSubtitle />
+        <Logo showSubtitle />
 
         {/* Welcome Message */}
         <View style={styles.messageContainer}>
@@ -63,7 +63,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 32,
     justifyContent: 'space-between',
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   messageContainer: {

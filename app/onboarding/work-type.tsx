@@ -122,13 +122,13 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 32,
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 40,
   },
   questionContainer: {
     alignItems: 'center',
     marginBottom: 60,
-    marginTop: 80,
+    marginTop: 20,
   },
   questionTitle: {
     fontSize: 24,

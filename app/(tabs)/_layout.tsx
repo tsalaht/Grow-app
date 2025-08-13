@@ -39,7 +39,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="daily-habits"
         options={{
           title: 'العادات اليومية',
@@ -47,7 +47,7 @@ export default function TabLayout() {
             <TrendingUp size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="finance"
         options={{

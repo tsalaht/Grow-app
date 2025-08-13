@@ -1,121 +1,226 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
-  Alert,
-  I18nManager,
   Modal,
+  Alert,
+  StyleSheet,
+  Dimensions,
+  StatusBar,
+  SafeAreaView,
+  Platform,
 } from 'react-native';
-import { Target, Plus, Check, X, CreditCard as Edit3, Trash2, Calendar, Bell, User, BookOpen } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
-import NotificationService from '@/services/NotificationService';
 
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
+type IconLib = 'Ionicons' | 'MaterialCommunityIcons';
 
-const days = [
-  'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'
-];
+const { width, height } = Dimensions.get('window');
 
-const months = [
-  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
-];
-
+// Types
 interface Task {
   id: string;
   title: string;
-  completed: boolean;
-  type: 'daily' | 'weekly' | 'monthly';
-  time?: string;
-  category: string;
-  createdAt: Date;
+  icon: string; // legacy emoji icon; kept for backward compatibility
+  iconLib?: IconLib;
+  iconName?: string; // professional icon name
+  notes: string;
+  status: 'completed' | 'in-progress' | 'overdue' | 'paused';
+  priority: 'urgent' | 'important' | 'normal' | 'low';
+  date: string;
+  time: string;
+  estimatedDuration: number;
+  progress: number;
+  category: 'daily' | 'weekly' | 'monthly';
 }
 
-export default function TasksScreen() {
-  const [tasks, setTasks] = useState<Task[]>([
-    { 
-      id: '1', 
-      title: 'قراءة كتاب', 
-      completed: false, 
-      type: 'daily',
-      time: '08:00',
-      category: 'تعلم',
-      createdAt: new Date() 
-    },
-  ]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showPeriodModal, setShowPeriodModal] = useState(false);
-  const [showDayModal, setShowDayModal] = useState(false);
-  const [showMonthModal, setShowMonthModal] = useState(false);
-  const [newTask, setNewTask] = useState({
+interface PreDefinedTask {
+  title: string;
+  iconLib: IconLib;
+  iconName: string;
+  category: string;
+}
+
+// Pre-defined tasks data
+const preDefinedTasks: Record<'daily' | 'weekly' | 'monthly', PreDefinedTask[]> = {
+  daily: [
+    { title: 'الذهاب الي الجيم', iconLib: 'MaterialCommunityIcons', iconName: 'dumbbell', category: 'صحة' },
+    { title: 'بدء يوم العمل ومراجعة المهام', iconLib: 'Ionicons', iconName: 'briefcase-outline', category: 'عمل' },
+    { title: 'قراءة كتاب أو مقال مفيد', iconLib: 'Ionicons', iconName: 'book-outline', category: 'تطوير' },
+    { title: 'تناول وجبات صحية متوازنة', iconLib: 'Ionicons', iconName: 'nutrition-outline', category: 'صحة' },
+    { title: 'شرب كمية كافية من الماء', iconLib: 'Ionicons', iconName: 'water-outline', category: 'صحة' },
+    { title: 'مراجعة والرد على البريد الإلكتروني', iconLib: 'Ionicons', iconName: 'mail-outline', category: 'عمل' },
+    { title: 'جلسة تأمل أو استرخاء', iconLib: 'MaterialCommunityIcons', iconName: 'meditation', category: 'صحة' },
+    { title: 'ترتيب السرير والغرفة', iconLib: 'MaterialCommunityIcons', iconName: 'bed-outline', category: 'منزل' },
+    { title: 'متابعة الأخبار والتطورات المهمة', iconLib: 'Ionicons', iconName: 'newspaper-outline', category: 'عام' },
+    { title: 'التخطيط والاستعداد لليوم التالي', iconLib: 'Ionicons', iconName: 'calendar-outline', category: 'تنظيم' },
+  ],
+  weekly: [
+    { title: 'اجتماع الفريق الأسبوعي', iconLib: 'Ionicons', iconName: 'people-outline', category: 'عمل' },
+    { title: 'زيارة الأهل والأصدقاء', iconLib: 'Ionicons', iconName: 'home-outline', category: 'اجتماعي' },
+    { title: 'التنظيف الشامل للمنزل', iconLib: 'MaterialCommunityIcons', iconName: 'broom', category: 'منزل' },
+    { title: 'تسوق احتياجات الأسبوع', iconLib: 'Ionicons', iconName: 'cart-outline', category: 'منزل' },
+    { title: 'مراجعة إنجازات الأسبوع', iconLib: 'Ionicons', iconName: 'stats-chart-outline', category: 'تنظيم' },
+    { title: 'فحص وصيانة السيارة', iconLib: 'MaterialCommunityIcons', iconName: 'car-wrench', category: 'صيانة' },
+    { title: 'حضور دورة تدريبية أو ورشة عمل', iconLib: 'Ionicons', iconName: 'school-outline', category: 'تطوير' },
+    { title: 'وقت ترفيه ومشاهدة', iconLib: 'Ionicons', iconName: 'film-outline', category: 'ترفيه' },
+  ],
+  monthly: [
+    { title: 'دفع الفواتير والالتزامات الشهرية', iconLib: 'Ionicons', iconName: 'card-outline', category: 'مالي' },
+    { title: 'إجراء الفحوصات الطبية الدورية', iconLib: 'Ionicons', iconName: 'medkit-outline', category: 'صحة' },
+    { title: 'مراجعة شاملة للميزانية', iconLib: 'Ionicons', iconName: 'bar-chart-outline', category: 'مالي' },
+    { title: 'تقييم وتحديث الأهداف طويلة المدى', iconLib: 'Ionicons', iconName: 'target-outline', category: 'تطوير' },
+    { title: 'تنظيم الوثائق والملفات المهمة', iconLib: 'Ionicons', iconName: 'folder-open-outline', category: 'تنظيم' },
+    { title: 'إعداد التقارير الشهرية', iconLib: 'Ionicons', iconName: 'document-text-outline', category: 'عمل' },
+  ]
+};
+
+type FormState = {
+  title: string;
+  icon: string;
+  notes: string;
+  priority: 'urgent' | 'important' | 'normal' | 'low';
+  date: string;
+  time: string;
+  estimatedDuration: number;
+  category: 'daily' | 'weekly' | 'monthly';
+  iconLib: IconLib;
+  iconName: string;
+};
+
+const dailyGoals: React.FC = () => {
+  const [fontsLoaded] = useFonts({ Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium });
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showPreDefinedTasks, setShowPreDefinedTasks] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<Task>>({});
+  
+  // Form state
+  const [formData, setFormData] = useState<FormState>({
     title: '',
-    type: 'daily' as 'daily' | 'weekly' | 'monthly',
-    time: '08:00',
-    period: 'morning' as 'morning' | 'evening',
-    day: 'الأحد',
-    month: 'يناير',
-    category: 'عام'
-  });
-  const [notificationService] = useState(() => NotificationService.getInstance());
-
-  const [fontsLoaded] = useFonts({
-    Tajawal_400Regular,
-    Tajawal_700Bold,
-    Tajawal_500Medium,
+    icon: '',
+    notes: '',
+    priority: 'normal' as const,
+    date: '',
+    time: '',
+    estimatedDuration: 30,
+    category: activeTab,
+    iconLib: 'Ionicons',
+    iconName: ''
   });
 
-  const addTask = async () => {
-    if (!newTask.title.trim()) {
-      Alert.alert('خطأ', 'يرجى إدخال عنوان المهمة');
-      return;
-    }
+  useEffect(() => {
+    loadTasks();
+  }, []);
 
-    const task: Task = {
-      id: Date.now().toString(),
-      title: newTask.title.trim(),
-      completed: false,
-      type: newTask.type,
-      time: newTask.time,
-      category: newTask.category,
-      createdAt: new Date(),
-    };
+  useEffect(() => {
+    saveTasks();
+  }, [tasks]);
 
-    setTasks([...tasks, task]);
-    setNewTask({ 
-      title: '', 
-      type: 'daily', 
-      time: '08:00', 
-      period: 'morning',
-      day: 'الأحد',
-      month: 'يناير',
-      category: 'عام' 
-    });
-    setShowAddModal(false);
-    
-    // جدولة إشعار المهمة
+  useEffect(() => {
+    setFormData(prev => ({ ...prev, category: activeTab }));
+  }, [activeTab]);
+
+  const loadTasks = async () => {
     try {
-      const taskData = {
-        id: task.id,
-        title: task.title,
-        reminderTime: task.time || '09:00',
-      };
-      await notificationService.scheduleDailyTaskReminder(taskData);
+      const savedTasks = await AsyncStorage.getItem('tasks');
+      if (savedTasks) {
+        setTasks(JSON.parse(savedTasks));
+      }
     } catch (error) {
-      console.error('خطأ في جدولة إشعار المهمة:', error);
+      console.error('Error loading tasks:', error);
     }
-    
-    Alert.alert('تم الإضافة', 'تم إضافة المهمة بنجاح');
   };
 
-  const toggleTask = (id: string) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
+  const saveTasks = async () => {
+    try {
+      await AsyncStorage.setItem('tasks', JSON.stringify(tasks));
+    } catch (error) {
+      console.error('Error saving tasks:', error);
+    }
+  };
+
+  const generateId = () => Math.random().toString(36).substr(2, 9);
+
+  const getCurrentTasks = () => {
+    return tasks.filter(task => task.category === activeTab);
+  };
+
+  const getFilteredPreDefinedTasks = () => {
+    const currentPreDefinedTasks = preDefinedTasks[activeTab];
+    return currentPreDefinedTasks.filter(task => {
+      const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = selectedCategory === '' || task.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  };
+
+  const getUniqueCategories = () => {
+    const currentPreDefinedTasks = preDefinedTasks[activeTab];
+    return [...new Set(currentPreDefinedTasks.map(task => task.category))];
+  };
+
+  const handleSelectPreDefinedTask = (task: PreDefinedTask) => {
+    setFormData(prev => ({
+      ...prev,
+      title: task.title,
+      icon: '',
+      iconLib: task.iconLib,
+      iconName: task.iconName
+    }));
+    setShowPreDefinedTasks(false);
+    setSearchTerm('');
+    setSelectedCategory('');
+  };
+
+  const handleSubmit = () => {
+    if (formData.title.trim()) {
+      const newTask: Task = {
+        id: generateId(),
+        title: formData.title,
+        icon: formData.icon,
+        iconLib: formData.iconName ? formData.iconLib : undefined,
+        iconName: formData.iconName || undefined,
+        notes: formData.notes,
+        status: 'in-progress',
+        priority: formData.priority,
+        date: formData.date || new Date().toISOString().split('T')[0],
+        time: formData.time || '09:00',
+        estimatedDuration: formData.estimatedDuration,
+        progress: 0,
+        category: activeTab
+      };
+      
+      setTasks(prev => [...prev, newTask]);
+      setFormData({
+        title: '',
+        icon: '',
+        notes: '',
+        priority: 'normal',
+        date: '',
+        time: '',
+        estimatedDuration: 30,
+        category: activeTab,
+        iconLib: 'Ionicons',
+        iconName: ''
+      });
+      setShowAddForm(false);
+    }
+  };
+
+  const updateTask = (id: string, updates: Partial<Task>) => {
+    setTasks(prev => prev.map(task => 
+      task.id === id ? { ...task, ...updates } : task
     ));
   };
 
@@ -126,337 +231,431 @@ export default function TasksScreen() {
       [
         { text: 'إلغاء', style: 'cancel' },
         { text: 'حذف', style: 'destructive', onPress: () => {
-          setTasks(tasks.filter(task => task.id !== id));
-        }},
+          setTasks(prev => prev.filter(task => task.id !== id));
+        }}
       ]
     );
   };
 
-  const getTasksByType = (type: 'daily' | 'weekly' | 'monthly') => {
-    return tasks.filter(task => task.type === type);
+  const duplicateTask = (task: Task) => {
+    const newTask = {
+      ...task,
+      id: generateId(),
+      title: `نسخة من ${task.title}`,
+      status: 'in-progress' as const,
+      progress: 0
+    };
+    setTasks(prev => [...prev, newTask]);
   };
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  const toggleTaskCompletion = (task: Task) => {
+    const newStatus = task.status === 'completed' ? 'in-progress' : 'completed';
+    const newProgress = newStatus === 'completed' ? 100 : task.progress;
+    updateTask(task.id, { status: newStatus, progress: newProgress });
+  };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <View style={styles.headerIcons}>
-            <TouchableOpacity style={styles.iconButton}>
-              <User size={20} color="#374151" />
-            </TouchableOpacity>
-            <View style={styles.notificationBadge}>
-              <Bell size={20} color="#374151" />
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>3</Text>
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return '#fee2e2';
+      case 'important': return '#fef3c7';
+      case 'normal': return '#dcfce7';
+      case 'low': return '#dbeafe';
+      default: return '#f3f4f6';
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'عاجل';
+      case 'important': return 'مهم';
+      case 'normal': return 'عادي';
+      case 'low': return 'منخفض';
+      default: return 'عادي';
+    }
+  };
+
+  const getTabLabel = (tab: string) => {
+    switch (tab) {
+      case 'daily': return 'يومية';
+      case 'weekly': return 'أسبوعية';
+      case 'monthly': return 'شهرية';
+      default: return tab;
+    }
+  };
+
+  const renderIcon = (
+    lib: IconLib,
+    name: string,
+    size = 24,
+    color = '#15803d'
+  ) => {
+    if (!name) return null;
+    if (lib === 'MaterialCommunityIcons') {
+      return <MaterialCommunityIcons name={name as any} size={size} color={color} />;
+    }
+    return <Ionicons name={name as any} size={size} color={color} />;
+  };
+
+  const TaskCard = ({ task }: { task: Task }) => (
+    <View style={styles.taskCard}>
+      <View style={styles.taskHeader}>
+        <View style={styles.taskInfo}>
+          {renderIcon(
+            task.iconName ? (task.iconLib || 'Ionicons') : 'Ionicons',
+            task.iconName || 'list-outline',
+            24,
+            '#15803d'
+          )}
+          <View style={styles.taskDetails}>
+            <Text style={[
+              styles.taskTitle,
+              task.status === 'completed' && styles.completedTask
+            ]}>
+              {task.title}
+            </Text>
+            <View style={styles.taskMeta}>
+              <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(task.priority) }]}>
+                <Text style={styles.priorityText}>{getPriorityLabel(task.priority)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="calendar-outline" size={12} color="#16a34a" />
+                <Text style={styles.taskDate}>{task.date}</Text>
               </View>
             </View>
           </View>
-          <Text style={styles.headerTitle}>المهام</Text>
         </View>
+        
+        <TouchableOpacity
+          onPress={() => toggleTaskCompletion(task)}
+          style={[
+            styles.completionButton,
+            task.status === 'completed' && styles.completedButton
+          ]}
+        >
+          {task.status === 'completed' ? (
+            <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+          ) : (
+            <Ionicons name="ellipse-outline" size={20} color="#6b7280" />
+          )}
+        </TouchableOpacity>
       </View>
 
-      {/* Main Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Add Task Button */}
-        <TouchableOpacity 
-          style={styles.addTaskButton}
-          onPress={() => setShowAddModal(true)}
+      {task.notes && (
+        <View style={styles.notesContainer}>
+          <Text style={styles.notesText}>{task.notes}</Text>
+        </View>
+      )}
+
+      {task.status !== 'completed' && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>التقدم</Text>
+            <Text style={styles.progressValue}>{task.progress}%</Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill,
+                { width: `${task.progress}%` }
+              ]}
+            />
+          </View>
+        </View>
+      )}
+
+      <View style={styles.taskActions}>
+        <TouchableOpacity
+          onPress={() => duplicateTask(task)}
+          style={styles.actionButton}
         >
-          <Plus size={20} color="#FFFFFF" />
-          <Text style={styles.addTaskText}>إضافة مهمة</Text>
+          <Ionicons name="copy-outline" size={18} color="#1f2937" />
         </TouchableOpacity>
+        
+        <TouchableOpacity
+          onPress={() => deleteTask(task.id)}
+          style={styles.actionButton}
+        >
+          <Ionicons name="trash-outline" size={18} color="#dc2626" />
+        </TouchableOpacity>
+        
+        <View style={styles.durationContainer}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="time-outline" size={14} color="#16a34a" />
+            <Text style={styles.durationText}>{task.estimatedDuration} دقيقة</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 
-        {/* Task Management Title */}
-        <Text style={styles.sectionTitle}>إدارة المهام</Text>
-
-        {/* Task Categories */}
-        <View style={styles.categoriesContainer}>
-          {/* Daily Tasks */}
-          <TouchableOpacity style={styles.categoryCard}>
-            <View style={[styles.categoryIcon, { backgroundColor: '#10B981' }]}>
-              <Calendar size={24} color="#FFFFFF" />
-            </View>
-            <Text style={styles.categoryTitle}>المهام اليومية</Text>
-            <Text style={styles.categorySubtitle}>كل يوم</Text>
-          </TouchableOpacity>
-
-          {/* Weekly Tasks */}
-          <TouchableOpacity style={styles.categoryCard}>
-            <View style={[styles.categoryIcon, { backgroundColor: '#8B5CF6' }]}>
-              <Calendar size={24} color="#FFFFFF" />
-            </View>
-            <Text style={styles.categoryTitle}>المهام الأسبوعية</Text>
-            <Text style={styles.categorySubtitle}>كل أسبوع</Text>
-          </TouchableOpacity>
-
-          {/* Monthly Tasks */}
-          <TouchableOpacity style={styles.categoryCard}>
-            <View style={[styles.categoryIcon, { backgroundColor: '#3B82F6' }]}>
-              <Calendar size={24} color="#FFFFFF" />
-            </View>
-            <Text style={styles.categoryTitle}>المهام الشهرية</Text>
-            <Text style={styles.categorySubtitle}>كل شهر</Text>
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#f0fdf4" />
+        {!fontsLoaded && null}
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}> المهام</Text>
+          
+          <TouchableOpacity
+            onPress={() => setShowAddForm(true)}
+            style={styles.addButton}
+          >
+            <Ionicons name="add" size={24} color="white" />
           </TouchableOpacity>
         </View>
 
-        {/* Current Tasks */}
-        <View style={styles.currentTasksSection}>
-          {tasks.map((task) => (
-            <View key={task.id} style={styles.taskItem}>
-              <View style={styles.taskLeft}>
-                <View style={styles.taskIcon}>
-                  <BookOpen size={20} color="#3B82F6" />
-                </View>
-                <View style={styles.taskInfo}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  <Text style={styles.taskTime}>يومياً في {task.time}</Text>
-                  <View style={styles.taskBadge}>
-                    <Text style={styles.taskBadgeText}>تعلم</Text>
-                  </View>
-                </View>
-              </View>
-              
-              <View style={styles.taskActions}>
-                <TouchableOpacity 
-                  style={styles.actionButton}
-                  onPress={() => deleteTask(task.id)}
-                >
-                  <Trash2 size={16} color="#EF4444" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton}>
-                  <Edit3 size={16} color="#6B7280" />
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.checkButton, task.completed && styles.checkButtonCompleted]}
-                  onPress={() => toggleTask(task.id)}
-                >
-                  {task.completed && <Check size={16} color="#FFFFFF" />}
-                </TouchableOpacity>
-              </View>
-            </View>
+        {/* Tabs */}
+        <View style={styles.tabsContainer}>
+          {(['daily', 'weekly', 'monthly'] as const).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={[
+                styles.tab,
+                activeTab === tab && styles.activeTab
+              ]}
+            >
+              <Text style={[
+                styles.tabText,
+                activeTab === tab && styles.activeTabText
+              ]}>
+                {getTabLabel(tab)}
+              </Text>
+            </TouchableOpacity>
           ))}
         </View>
 
-        {/* Tips Section */}
-        <View style={styles.tipsSection}>
-          <Text style={styles.tipsTitle}>نصائح لإدارة المهام</Text>
-          <View style={styles.tipCard}>
-            <View style={styles.tipIcon}>
-              <Calendar size={20} color="#F59E0B" />
-            </View>
-            <Text style={styles.tipText}>خطط مهامك اليومية في بداية كل يوم</Text>
-          </View>
-        </View>
-      </ScrollView>
+        {/* Tasks List */}
+        <ScrollView style={styles.tasksContainer} showsVerticalScrollIndicator={false}>
+          {getCurrentTasks().length > 0 ? (
+            <>
+              {/* Stats */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>
+                    {getCurrentTasks().filter(t => t.status === 'completed').length}
+                  </Text>
+                  <Text style={styles.statLabel}>مكتملة</Text>
+                </View>
+                
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>
+                    {getCurrentTasks().filter(t => t.status === 'in-progress').length}
+                  </Text>
+                  <Text style={styles.statLabel}>قيد التنفيذ</Text>
+                </View>
+              </View>
 
-      {/* Add Task Modal */}
-      <Modal
-        visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+              {/* Tasks */}
+              {getCurrentTasks().map((task) => (
+                <TaskCard key={task.id} task={task} />
+              ))}
+            </>
+          ) : (
+              <View style={styles.emptyState}>
+                <View style={{ marginBottom: 16 }}>
+                  <Ionicons name="document-text-outline" size={64} color="#94a3b8" />
+                </View>
+                <Text style={styles.emptyTitle}>لا توجد مهام بعد</Text>
+                <Text style={styles.emptySubtitle}>ابدأ بإضافة مهمة جديدة لتنظيم يومك</Text>
+                <TouchableOpacity
+                  onPress={() => setShowAddForm(true)}
+                  style={styles.emptyButton}
+                >
+                  <Text style={styles.emptyButtonText}>إضافة أول مهمة</Text>
+                </TouchableOpacity>
+              </View>
+          )}
+        </ScrollView>
+
+        {/* Add Task Modal */}
+        <Modal
+          visible={showAddForm}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>إضافة مهمة جديدة</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={24} color="#6B7280" />
+              <TouchableOpacity
+                onPress={() => setShowAddForm(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={16} color="#6b7280" />
               </TouchableOpacity>
             </View>
 
-            <TextInput
-              style={styles.modalTitleInput}
-              placeholder="عنوان المهمة..."
-              value={newTask.title}
-              onChangeText={(text) => setNewTask({...newTask, title: text})}
-              textAlign="right"
-              multiline
-              numberOfLines={3}
-            />
+            <ScrollView style={styles.formContainer}>
+              {/* Pre-defined Tasks Button */}
+              <TouchableOpacity
+                onPress={() => setShowPreDefinedTasks(true)}
+                style={styles.preDefinedButton}
+              >
+                <Text style={styles.preDefinedButtonText}>استعراض العناوين الجاهزة</Text>
+                <Ionicons name="document-text-outline" size={20} color="#15803d" />
+              </TouchableOpacity>
 
-            <View style={styles.typeSelector}>
-              {(['daily', 'weekly', 'monthly'] as const).map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.typeButton,
-                    newTask.type === type && styles.activeTypeButton
-                  ]}
-                  onPress={() => setNewTask({...newTask, type})}
+              {/* Title Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>عنوان المهمة</Text>
+                <View style={styles.titleInputContainer}>
+                  <TextInput
+                    style={styles.titleInput}
+                    placeholder="أدخل عنوان المهمة..."
+                    value={formData.title}
+                    onChangeText={(text) => setFormData(prev => ({...prev, title: text}))}
+                    multiline
+                  />
+                </View>
+              </View>
+
+              {/* Icon Picker */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>الأيقونة</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.iconPickerContainer}
                 >
-                  <Text style={[
-                    styles.typeButtonText,
-                    newTask.type === type && styles.activeTypeButtonText
-                  ]}>
-                    {type === 'daily' ? 'يومية' : type === 'weekly' ? 'أسبوعية' : 'شهرية'}
-                  </Text>
+                  {[
+                    { lib: 'MaterialCommunityIcons' as const, name: 'dumbbell' },
+                    { lib: 'Ionicons' as const, name: 'book-outline' },
+                    { lib: 'Ionicons' as const, name: 'water-outline' },
+                    { lib: 'Ionicons' as const, name: 'mail-outline' },
+                    { lib: 'MaterialCommunityIcons' as const, name: 'meditation' },
+                    { lib: 'MaterialCommunityIcons' as const, name: 'broom' },
+                    { lib: 'Ionicons' as const, name: 'calendar-outline' },
+                    { lib: 'Ionicons' as const, name: 'people-outline' },
+                    { lib: 'Ionicons' as const, name: 'cart-outline' },
+                    { lib: 'Ionicons' as const, name: 'stats-chart-outline' },
+                    { lib: 'Ionicons' as const, name: 'cash-outline' },
+                    { lib: 'Ionicons' as const, name: 'document-text-outline' },
+                  ].map((ic) => (
+                    <TouchableOpacity
+                      key={`${ic.lib}:${ic.name}`}
+                      onPress={() => setFormData(prev => ({...prev, iconLib: ic.lib, iconName: ic.name}))}
+                      style={[
+                        styles.iconOption,
+                        formData.iconLib === ic.lib && formData.iconName === ic.name && styles.selectedIconOption,
+                      ]}
+                    >
+                      {renderIcon(ic.lib, ic.name, 24, '#15803d')}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Notes Input */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>الملاحظات التفصيلية</Text>
+                <TextInput
+                  style={styles.notesInput}
+                  placeholder="اكتب الملاحظات التفصيلية للمهمة..."
+                  value={formData.notes}
+                  onChangeText={(text) => setFormData(prev => ({...prev, notes: text}))}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              {/* Priority and Duration */}
+              <View style={styles.rowInputs}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.inputLabel}>الأولوية</Text>
+                  <View style={styles.priorityContainer}>
+                    {['urgent', 'important', 'normal', 'low'].map((priority) => (
+                      <TouchableOpacity
+                        key={priority}
+                        onPress={() => setFormData(prev => ({...prev, priority: priority as any}))}
+                        style={[
+                          styles.priorityOption,
+                          formData.priority === priority && styles.selectedPriority,
+                          { backgroundColor: getPriorityColor(priority) }
+                        ]}
+                      >
+                        <Text style={styles.priorityOptionText}>
+                          {getPriorityLabel(priority)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.halfInput}>
+                  <Text style={styles.inputLabel}>المدة (دقيقة)</Text>
+                  <TextInput
+                    style={styles.durationInput}
+                    placeholder="30"
+                    value={formData.estimatedDuration.toString()}
+                    onChangeText={(text) => setFormData(prev => ({
+                      ...prev, 
+                      estimatedDuration: parseInt(text) || 30
+                    }))}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              {/* Submit Button */}
+              <TouchableOpacity
+                onPress={handleSubmit}
+                style={styles.submitButton}
+              >
+                <Text style={styles.submitButtonText}>إضافة المهمة</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+
+              {/* Pre-defined Tasks Modal */}
+        <Modal
+          visible={showPreDefinedTasks}
+          animationType="slide"
+          presentationStyle="pageSheet"
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>العناوين الجاهزة</Text>
+              <TouchableOpacity
+                onPress={() => setShowPreDefinedTasks(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={16} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="بحث في العناوين..."
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+              />
+            </View>
+
+            <ScrollView style={styles.preDefinedList}>
+              {getFilteredPreDefinedTasks().map((task, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => handleSelectPreDefinedTask(task)}
+                  style={styles.preDefinedItem}
+                >
+                  {renderIcon(task.iconLib, task.iconName, 24, '#15803d')}
+                  <View style={styles.preDefinedInfo}>
+                    <Text style={styles.preDefinedTitle}>{task.title}</Text>
+                    <Text style={styles.preDefinedCategory}>{task.category}</Text>
+                  </View>
                 </TouchableOpacity>
               ))}
-            </View>
-
-            {/* Time Selection for Daily Tasks */}
-            {newTask.type === 'daily' && (
-              <View style={styles.periodSelector}>
-                <Text style={styles.selectorLabel}>الفترة الزمنية</Text>
-                <TouchableOpacity 
-                  style={styles.dropdownButton}
-                  onPress={() => setShowPeriodModal(true)}
-                >
-                  <Text style={styles.dropdownText}>
-                    {newTask.period === 'morning' ? 'صباحاً' : 'مساءً'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Day Selection for Weekly Tasks */}
-            {newTask.type === 'weekly' && (
-              <View style={styles.periodSelector}>
-                <Text style={styles.selectorLabel}>اليوم</Text>
-                <TouchableOpacity 
-                  style={styles.dropdownButton}
-                  onPress={() => setShowDayModal(true)}
-                >
-                  <Text style={styles.dropdownText}>{newTask.day}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Month Selection for Monthly Tasks */}
-            {newTask.type === 'monthly' && (
-              <View style={styles.periodSelector}>
-                <Text style={styles.selectorLabel}>الشهر</Text>
-                <TouchableOpacity 
-                  style={styles.dropdownButton}
-                  onPress={() => setShowMonthModal(true)}
-                >
-                  <Text style={styles.dropdownText}>{newTask.month}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <TextInput
-              style={styles.modalInput}
-              placeholder="الوقت (مثال: 08:00)"
-              value={newTask.time}
-              onChangeText={(text) => setNewTask({...newTask, time: text})}
-              textAlign="right"
-            />
-
-            <TouchableOpacity style={styles.saveButton} onPress={addTask}>
-              <Text style={styles.saveButtonText}>حفظ المهمة</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Period Selection Modal */}
-      <Modal
-        visible={showPeriodModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPeriodModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>اختر الفترة الزمنية</Text>
-              <TouchableOpacity onPress={() => setShowPeriodModal(false)}>
-                <X size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => {
-                setNewTask({...newTask, period: 'morning'});
-                setShowPeriodModal(false);
-              }}
-            >
-              <Text style={styles.modalOptionText}>صباحاً</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => {
-                setNewTask({...newTask, period: 'evening'});
-                setShowPeriodModal(false);
-              }}
-            >
-              <Text style={styles.modalOptionText}>مساءً</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Day Selection Modal */}
-      <Modal
-        visible={showDayModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowDayModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>اختر اليوم</Text>
-              <TouchableOpacity onPress={() => setShowDayModal(false)}>
-                <X size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            {days.map((day) => (
-              <TouchableOpacity
-                key={day}
-                style={styles.modalOption}
-                onPress={() => {
-                  setNewTask({...newTask, day});
-                  setShowDayModal(false);
-                }}
-              >
-                <Text style={styles.modalOptionText}>{day}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Month Selection Modal */}
-      <Modal
-        visible={showMonthModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowMonthModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>اختر الشهر</Text>
-              <TouchableOpacity onPress={() => setShowMonthModal(false)}>
-                <X size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            {months.map((month) => (
-              <TouchableOpacity
-                key={month}
-                style={styles.modalOption}
-                onPress={() => {
-                  setNewTask({...newTask, month});
-                  setShowMonthModal(false);
-                }}
-              >
-                <Text style={styles.modalOptionText}>{month}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+            </ScrollView>
+          </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -464,354 +663,490 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   header: {
-    backgroundColor: '#A2E9C1',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-  },
-  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  headerIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationBadge: {
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#095028',
-    borderRadius: 10,
-    width: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontFamily: 'Tajawal_700Bold',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#dcfce7',
   },
   headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#095028',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  addTaskButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#095028',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-    marginBottom: 24,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  addTaskText: {
-    fontSize: 16,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#FFFFFF',
-  },
-  sectionTitle: {
     fontSize: 18,
+
+    color: '#15803d',
+    textAlign: 'right',
     fontFamily: 'Tajawal_700Bold',
-    color: '#1F2937',
-    marginBottom: 16,
-    textAlign: 'left',
   },
-  categoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 32,
-  },
-  categoryCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    minWidth: 100,
-    flex: 1,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  addButton: {
+    backgroundColor: '#16a34a',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  categoryTitle: {
+  addButtonText: {
+    fontSize: 20,
+    color: 'white',
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#dcfce7',
+    margin: 20,
+    borderRadius: 12,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activeTab: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabText: {
     fontSize: 14,
+    color: '#16a34a',
+
     fontFamily: 'Tajawal_500Medium',
-    color: '#1F2937',
-    textAlign: 'center',
-    marginBottom: 4,
   },
-  categorySubtitle: {
+  activeTabText: {
+    color: '#15803d',
+
+    fontFamily: 'Tajawal_700Bold',
+  },
+  tasksContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+  },
+  statNumber: {
+    fontSize: 24,
+
+    color: '#16a34a',
+    fontFamily: 'Tajawal_700Bold',
+  },
+  statLabel: {
     fontSize: 12,
+    color: '#16a34a',
+    marginTop: 4,
     fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
-    textAlign: 'center',
   },
-  currentTasksSection: {
-    gap: 12,
-    marginBottom: 32,
-  },
-  taskItem: {
-    backgroundColor: '#FFFFFF',
+  taskCard: {
+    backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    elevation: 1,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#dcfce7',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
+    elevation: 1,
   },
-  taskLeft: {
+  taskHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  taskInfo: {
+    flexDirection: 'row',
     flex: 1,
     gap: 12,
   },
   taskIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FEF3C7',
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 24,
   },
-
-  taskInfo: {
-  
+  taskDetails: {
+    flex: 1,
   },
   taskTitle: {
     fontSize: 16,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#1F2937',
-    marginBottom: 4,
+
+    color: '#1f2937',
     textAlign: 'right',
+    lineHeight: 22,
+    fontFamily: 'Tajawal_700Bold',
   },
-  taskTime: {
-    fontSize: 12,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
-    marginBottom: 6,
-    textAlign: 'right',
+  completedTask: {
+    textDecorationLine: 'line-through',
+    color: '#16a34a',
   },
-  taskBadge: {
-    backgroundColor: '#DBEAFE',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  taskBadgeText: {
-    fontSize: 10,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#3B82F6',
-  },
-  taskActions: {
+  taskMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 4,
+  },
+  priorityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  priorityText: {
+    fontSize: 10,
+
+    fontFamily: 'Tajawal_500Medium',
+  },
+  taskDate: {
+    fontSize: 10,
+    color: '#16a34a',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  completionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+  },
+  completedButton: {
+    backgroundColor: '#dcfce7',
+  },
+  completionButtonText: {
+    fontSize: 16,
+  },
+  notesContainer: {
+    backgroundColor: '#F8FAFC',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  notesText: {
+    fontSize: 12,
+    color: '#15803d',
+    textAlign: 'right',
+    lineHeight: 18,
+    fontFamily: 'Tajawal_400Regular',
+  },
+  progressContainer: {
+    marginBottom: 8,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  progressLabel: {
+    fontSize: 12,
+    color: '#16a34a',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  progressValue: {
+    fontSize: 12,
+    color: '#15803d',
+ 
+    fontFamily: 'Tajawal_700Bold',
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#dcfce7',
+    borderRadius: 2,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#16a34a',
+    borderRadius: 2,
+  },
+  taskActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#dcfce7',
   },
   actionButton: {
     padding: 8,
+    borderRadius: 8,
   },
-  checkButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkButtonCompleted: {
-    backgroundColor: '#095028',
-  },
-  tipsSection: {
-    marginBottom: 20,
-  },
-  tipsTitle: {
+  actionButtonText: {
     fontSize: 16,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#1F2937',
-    marginBottom: 12,
-    textAlign: 'left',
+    fontFamily: 'Tajawal_400Regular',
   },
-  tipCard: {
-    backgroundColor: '#A2E9C1',
-    borderRadius: 12,
-    padding: 16,
+  durationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
-  tipIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#095028',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tipEmoji: {
-    fontSize: 16,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 14,
+  durationText: {
+    fontSize: 12,
+    color: '#16a34a',
     fontFamily: 'Tajawal_400Regular',
-    color: '#095028',
-    textAlign: 'right',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
+  emptyState: {
     alignItems: 'center',
-    padding: 20,
+    paddingVertical: 60,
   },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    width: '100%',
-    maxWidth: 400,
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+
+    color: '#15803d',
+    marginBottom: 8,
+    textAlign: 'center',
+    fontFamily: 'Tajawal_700Bold',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#16a34a',
+    textAlign: 'center',
+    marginBottom: 24,
+    fontFamily: 'Tajawal_400Regular',
+  },
+  emptyButton: {
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyButtonText: {
+    color: 'white',
+    fontSize: 16,
+
+    fontFamily: 'Tajawal_700Bold',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#dcfce7',
   },
   modalTitle: {
     fontSize: 18,
+    color: '#15803d',
     fontFamily: 'Tajawal_700Bold',
-    color: '#1F2937',
   },
-  modalInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    padding: 12,
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+  },
+  closeButtonText: {
     fontSize: 16,
-    fontFamily: 'Tajawal_400Regular',
-    marginBottom: 16,
+    color: '#6b7280',
   },
-  typeSelector: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
-  },
-  typeButton: {
+  formContainer: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
+    padding: 20,
   },
-  activeTypeButton: {
-    backgroundColor: '#095028',
-  },
-  typeButtonText: {
-    fontSize: 14,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#6B7280',
-  },
-  activeTypeButtonText: {
-    color: '#FFFFFF',
-  },
-  saveButton: {
-    backgroundColor: '#095028',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontFamily: 'Tajawal_700Bold',
-    color: '#FFFFFF',
-  },
-  modalTitleInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
+  preDefinedButton: {
+    backgroundColor: '#dcfce7',
     padding: 16,
-    fontSize: 18,
-    fontFamily: 'Tajawal_400Regular',
-    marginBottom: 16,
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  periodSelector: {
-    marginBottom: 16,
-  },
-  selectorLabel: {
-    fontSize: 16,
-    fontFamily: 'Tajawal_500Medium',
-    color: '#374151',
-    marginBottom: 8,
-    textAlign: 'left',
-  },
-  dropdownButton: {
+    borderRadius: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,
+  },
+  preDefinedButtonText: {
+    fontSize: 16,
+    color: '#15803d',
+
+    fontFamily: 'Tajawal_500Medium',
+  },
+  preDefinedButtonIcon: {
+    fontSize: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: '#15803d',
+    marginBottom: 8,
+    textAlign: 'right',
+    fontFamily: 'Tajawal_500Medium',
+  },
+  titleInputContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  titleInput: {
+    flex: 1,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#dcfce7',
     borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    textAlign: 'right',
+    backgroundColor: 'white',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  iconInput: {
+    width: 60,
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 20,
+    textAlign: 'center',
+    backgroundColor: 'white',
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    textAlign: 'right',
+    backgroundColor: 'white',
+    minHeight: 100,
+    fontFamily: 'Tajawal_400Regular',
+    paddingVertical:8
+  },
+  rowInputs: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  priorityContainer: {
+    gap: 8,
+  },
+  priorityOption: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+  },
+  selectedPriority: {
+    borderWidth: 2,
+    borderColor: '#16a34a',
+  },
+  priorityOptionText: {
+    fontSize: 12,
+    textAlign: 'center',
+ 
+    fontFamily: 'Tajawal_500Medium',
+  },
+  durationInput: {
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    textAlign: 'center',
+    backgroundColor: 'white',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  submitButton: {
+    backgroundColor: '#16a34a',
     padding: 16,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom:60
   },
-  dropdownText: {
+  submitButtonText: {
+    color: 'white',
     fontSize: 16,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#374151',
-    textAlign: 'left',
+
+    fontFamily: 'Tajawal_700Bold',
   },
-  modalOption: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+  searchContainer: {
+    padding: 20,
+    backgroundColor: '#dcfce7',
   },
-  modalOptionText: {
+  searchInput: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 12,
     fontSize: 16,
+    textAlign: 'right',
+  },
+  preDefinedList: {
+    flex: 1,
+  },
+  iconPickerContainer: {
+    paddingVertical: 4,
+    gap: 8,
+  },
+  iconOption: {
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+    marginRight: 8,
+  },
+  selectedIconOption: {
+    borderColor: '#16a34a',
+    borderWidth: 2,
+  },
+  preDefinedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginBottom: 8,
+    borderRadius: 12,
+    gap: 12,
+  },
+  preDefinedIcon: {
+    fontSize: 24,
+  },
+  preDefinedInfo: {
+    flex: 1,
+  },
+  preDefinedTitle: {
+    fontSize: 16,
+    color: '#1f2937',
+    textAlign: 'right',
+    marginBottom: 4,
+    fontFamily: 'Tajawal_500Medium',
+  },
+  preDefinedCategory: {
+    fontSize: 12,
+    color: '#16a34a',
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-end',
     fontFamily: 'Tajawal_400Regular',
-    color: '#374151',
-    textAlign: 'left',
   },
 });
+
+export default dailyGoals;

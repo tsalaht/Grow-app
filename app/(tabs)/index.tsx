@@ -23,6 +23,7 @@ import {
   Dumbbell,
   Bell,
   User,
+  ChevronLeft
 } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import { useMyAppContext } from '@/context/MyAppContext';
@@ -38,15 +39,17 @@ interface DashboardCardProps {
   icon: React.ReactNode;
   content: React.ReactNode;
   backgroundColor: string;
+  onPress?: () => void;
 }
 
 const DashboardCard: React.FC<DashboardCardProps> = ({ 
   title, 
   icon, 
   content, 
-  backgroundColor 
+  backgroundColor,
+  onPress,
 }) => (
-  <View style={[styles.card, { backgroundColor }]}>
+  <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.card, { backgroundColor }]}>
     <View style={styles.cardHeader}>
       <View style={styles.cardTitleContainer}>
         <Text style={styles.cardTitle}>{title}</Text>
@@ -55,7 +58,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
     <View style={styles.cardContent}>
       {content}
     </View>
-  </View>
+  </TouchableOpacity>
 );
 
 const ProgressBar: React.FC<{ progress: number; total: number }> = ({ progress, total }) => (
@@ -118,8 +121,8 @@ export default function HomeScreen() {
                 <Bell size={22} color="#12A150" />
               </TouchableOpacity>
             </View>
-            <Logo/>
-            {/* <Text style={styles.appTitle}>نمو</Text> */}
+            <Logo />
+     
           </View>
           {/* <Text style={styles.greeting}>{getGreeting()}، {username}</Text> */}
         </LinearGradient>
@@ -131,6 +134,7 @@ export default function HomeScreen() {
             title="أهدافي"
             icon={<Target size={20} color="#EF4444" />}
             backgroundColor="#E0F2FE"
+            onPress={() => router.push('/big-goals')}
             content={
               <View style={styles.goalsContent}>
                 <Text style={styles.goalsSubtext}>لا توجد أهداف اليوم</Text>
@@ -144,9 +148,10 @@ export default function HomeScreen() {
 
           {/* Daily Habits Card */}
           <DashboardCard
-            title="العادات اليومية"
+            title="المهام"
             icon={<TrendingUp size={20} color="#10B981" />}
             backgroundColor="#D1FAE5"
+            onPress={() => router.push('/daily-goals')}
             content={
               <View style={styles.habitsContent}>
                 <ProgressBar 
@@ -166,6 +171,7 @@ export default function HomeScreen() {
             title="المالية"
             icon={<CreditCard size={20} color="#F59E0B" />}
             backgroundColor="#FEF3C7"
+               onPress={() => router.push('/finance')}
             content={
               <View style={styles.financeContent}>
                 <Text style={styles.financeAmount}>
@@ -189,18 +195,18 @@ export default function HomeScreen() {
               <Dumbbell size={20} color="#8B5CF6" />
               <Text style={styles.activityText}>تمرين رياضي</Text>
             </View>
-            <ChevronRight size={16} color="#9CA3AF" />
+            <ChevronLeft size={16} color="#9CA3AF" />
           </TouchableOpacity>
 
           {/* Quick Actions */}
           <View style={styles.quickActions}>
-            <TouchableOpacity style={[styles.quickActionCard, styles.smartNotesCard]}>
+            <TouchableOpacity style={[styles.quickActionCard, styles.smartNotesCard]} onPress={() => router.push('/smart-notes')}>
               <Brain size={24} color="#EC4899" />
               <Text style={styles.quickActionTitle}>الملاحظات الذكية</Text>
               <Text style={styles.quickActionSubtitle}>تدوين الأفكار والملاحظات</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.quickActionCard, styles.bigGoalsCard]}>
+            <TouchableOpacity style={[styles.quickActionCard, styles.bigGoalsCard]}          onPress={() => router.push('/big-goals')}>
               <Trophy size={24} color="#F59E0B" />
               <Text style={styles.quickActionTitle}>أهدافي الكبيرة</Text>
               <Text style={styles.quickActionSubtitle}>الأهداف طويلة المدى</Text>
@@ -227,8 +233,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     paddingHorizontal: 20,
-    paddingTop: 45,
-    paddingBottom: 20,
+
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -415,7 +420,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
-    textAlign: 'right',
+    textAlign: 'left',
   },
   activityItem: {
     flexDirection: 'row',

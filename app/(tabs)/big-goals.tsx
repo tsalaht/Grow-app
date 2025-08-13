@@ -11,9 +11,10 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { Trophy, Plus, Target, Calendar, DollarSign, ChevronDown, X, Heart, Car, Home, Briefcase, GraduationCap, Edit } from 'lucide-react-native';
+import { Trophy, Plus, Target, Calendar, DollarSign, ChevronDown, X, Heart, Car, Home, Briefcase, GraduationCap, Edit, Minus } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
+import DatePickerModal from '@/app/Components/datePicker';
 
 interface BigGoal {
   id: string;
@@ -52,9 +53,7 @@ export default function BigGoalsScreen() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showGoalTypeModal, setShowGoalTypeModal] = useState(false);
-  const [showDayModal, setShowDayModal] = useState(false);
-  const [showMonthModal, setShowMonthModal] = useState(false);
-  const [showYearModal, setShowYearModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [notificationService] = useState(() => NotificationService.getInstance());
 
   const [newGoal, setNewGoal] = useState({
@@ -72,6 +71,9 @@ export default function BigGoalsScreen() {
 
   const [editingGoal, setEditingGoal] = useState<BigGoal | null>(null);
   const [editMonthlyAmount, setEditMonthlyAmount] = useState('');
+  const [showAdjustForm, setShowAdjustForm] = useState(false);
+  const [goalToAdjust, setGoalToAdjust] = useState<BigGoal | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState('');
 
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
@@ -112,18 +114,43 @@ export default function BigGoalsScreen() {
 
   const formatTimeToGoal = (months: number) => {
     if (months === Infinity) return 'لا يمكن الوصول بالمدخرات الحالية';
-    if (months === 0) return 'تم الوصول للهدف';
-    
+    if (months <= 0) return 'تم الوصول للهدف';
     const years = Math.floor(months / 12);
     const remainingMonths = months % 12;
-    
-    if (years === 0) {
-      return `${months} شهر للوصول`;
-    } else if (remainingMonths === 0) {
-      return `${years} سنة للوصول`;
-    } else {
-      return `${years} سنة و ${remainingMonths} شهر للوصول`;
+    if (years === 0) return `${months} شهر`;
+    if (remainingMonths === 0) return `${years} سنة`;
+    return `${years} سنة و ${remainingMonths} شهر`;
+  };
+
+  const openAdjustModal = (goal: BigGoal) => {
+    setGoalToAdjust(goal);
+    setAdjustAmount('');
+    setShowAdjustForm(true);
+  };
+
+  const applyAdjustment = (type: 'add' | 'subtract') => {
+    if (!goalToAdjust) return;
+    const numericAmount = parseFloat(adjustAmount);
+    if (!numericAmount || numericAmount <= 0) {
+      Alert.alert('قيمة غير صالحة', 'يرجى إدخال مبلغ صالح');
+      return;
     }
+
+    let updatedCurrent =
+      type === 'add'
+        ? goalToAdjust.currentAmount + numericAmount
+        : goalToAdjust.currentAmount - numericAmount;
+    if (updatedCurrent < 0) updatedCurrent = 0;
+    if (updatedCurrent > goalToAdjust.totalCost) updatedCurrent = goalToAdjust.totalCost;
+
+    const updatedGoals = goals.map((g) =>
+      g.id === goalToAdjust.id ? { ...g, currentAmount: updatedCurrent } : g
+    );
+    setGoals(updatedGoals);
+    setShowAdjustForm(false);
+    setGoalToAdjust(null);
+    setAdjustAmount('');
+    Alert.alert('تم', 'تم تحديث رصيد الهدف');
   };
 
   const saveGoal = async () => {
@@ -268,7 +295,7 @@ export default function BigGoalsScreen() {
           <View style={styles.dateContainer}>
             <TouchableOpacity 
               style={styles.dateDropdown}
-              onPress={() => setShowDayModal(true)}
+              onPress={() => setShowDatePicker(true)}
             >
               <Text style={styles.dateText}>{newGoal.targetDate.day}</Text>
               <ChevronDown size={16} color="#6B7280" />
@@ -276,7 +303,7 @@ export default function BigGoalsScreen() {
 
             <TouchableOpacity 
               style={styles.dateDropdown}
-              onPress={() => setShowMonthModal(true)}
+              onPress={() => setShowDatePicker(true)}
             >
               <Text style={styles.dateText}>{newGoal.targetDate.month}</Text>
               <ChevronDown size={16} color="#6B7280" />
@@ -284,7 +311,7 @@ export default function BigGoalsScreen() {
 
             <TouchableOpacity 
               style={styles.dateDropdown}
-              onPress={() => setShowYearModal(true)}
+              onPress={() => setShowDatePicker(true)}
             >
               <Text style={styles.dateText}>{newGoal.targetDate.year}</Text>
               <ChevronDown size={16} color="#6B7280" />
@@ -354,96 +381,25 @@ export default function BigGoalsScreen() {
           </View>
         </Modal>
 
-        {/* Modal لليوم */}
-        <Modal
-          visible={showDayModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowDayModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>اختر اليوم</Text>
-              <ScrollView style={styles.modalScroll}>
-                {days.map((day) => (
-                  <TouchableOpacity
-                    key={day}
-                    style={styles.modalOption}
-                    onPress={() => {
-                      setNewGoal({
-                        ...newGoal, 
-                        targetDate: {...newGoal.targetDate, day}
-                      });
-                      setShowDayModal(false);
-                    }}
-                  >
-                    <Text style={styles.modalOptionText}>{day}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal للشهر */}
-        <Modal
-          visible={showMonthModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowMonthModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>اختر الشهر</Text>
-              {months.map((month) => (
-                <TouchableOpacity
-                  key={month}
-                  style={styles.modalOption}
-                  onPress={() => {
-                    setNewGoal({
-                      ...newGoal, 
-                      targetDate: {...newGoal.targetDate, month}
-                    });
-                    setShowMonthModal(false);
-                  }}
-                >
-                  <Text style={styles.modalOptionText}>{month}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </Modal>
-
-        {/* Modal للسنة */}
-        <Modal
-          visible={showYearModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowYearModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>اختر السنة</Text>
-              <ScrollView style={styles.modalScroll}>
-                {years.map((year) => (
-                  <TouchableOpacity
-                    key={year}
-                    style={styles.modalOption}
-                    onPress={() => {
-                      setNewGoal({
-                        ...newGoal, 
-                        targetDate: {...newGoal.targetDate, year}
-                      });
-                      setShowYearModal(false);
-                    }}
-                  >
-                    <Text style={styles.modalOptionText}>{year}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
+        {/* منتقي تاريخ موحد */}
+        <DatePickerModal
+          visible={showDatePicker}
+          mode="date"
+          title="اختر التاريخ"
+          initialDate={new Date(newGoal.targetDate.year, months.indexOf(newGoal.targetDate.month), newGoal.targetDate.day)}
+          minimumDate={new Date()}
+          onConfirm={(selected) => {
+            const day = selected.getDate();
+            const month = months[selected.getMonth()];
+            const year = selected.getFullYear();
+            setNewGoal({
+              ...newGoal,
+              targetDate: { day, month, year },
+            });
+            setShowDatePicker(false);
+          }}
+          onClose={() => setShowDatePicker(false)}
+        />
       </SafeAreaView>
     );
   }
@@ -585,19 +541,32 @@ export default function BigGoalsScreen() {
                       <Text style={styles.targetDate}>
                         الهدف: {goal.targetDate.day} {goal.targetDate.month} {goal.targetDate.year}
                       </Text>
-                      <Text style={styles.yearsRemaining}>
-                        {yearsRemaining > 0 ? `${yearsRemaining} سنة متبقية` : 'الموعد النهائي قد حان'}
-                      </Text>
+                      <View style={styles.adjustActions}>
+                        <TouchableOpacity style={styles.adjustButton} onPress={() => openAdjustModal(goal)}>
+                          <DollarSign size={16} color="#6B7280" />
+                          <Text style={styles.adjustButtonText}>تحديث الرصيد</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                     <View style={styles.goalFooterRight}>
                       <Text style={styles.monthlyAmount}>
                         شهرياً: {goal.monthlyAmount.toLocaleString()} رس
                       </Text>
-                                             {goal.monthlyAmount > 0 && (
-                         <Text style={styles.monthsToGoal}>
-                           {formatTimeToGoal(monthsToGoal)}
-                         </Text>
-                       )}
+                      {goal.monthlyAmount > 0 && monthsToGoal !== Infinity && (
+                        <>
+                          <Text style={styles.monthsToGoal}>
+                            الوقت المتوقع: {formatTimeToGoal(monthsToGoal)}
+                          </Text>
+                          <Text style={styles.monthsToGoalSecondary}>
+                            أي ما يعادل {monthsToGoal} شهر
+                          </Text>
+                        </>
+                      )}
+                      {goal.monthlyAmount > 0 && monthsToGoal === Infinity && (
+                        <Text style={styles.monthsToGoal}>
+                          لا يمكن الوصول بالمدخرات الحالية
+                        </Text>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -606,6 +575,50 @@ export default function BigGoalsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Adjust Amount Modal */}
+      <Modal
+        visible={showAdjustForm}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowAdjustForm(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>تحديث رصيد الهدف</Text>
+            {goalToAdjust && (
+              <View style={{ paddingHorizontal: 20 }}>
+                <Text style={styles.adjustGoalName}>{goalToAdjust.name}</Text>
+                <Text style={styles.adjustCurrentInfo}>
+                  الحالي: {goalToAdjust.currentAmount.toLocaleString()} رس من {goalToAdjust.totalCost.toLocaleString()} رس
+                </Text>
+                <Text style={styles.fieldLabel}>المبلغ</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="أدخل المبلغ"
+                  value={adjustAmount}
+                  onChangeText={setAdjustAmount}
+                  keyboardType="numeric"
+                  textAlign="right"
+                />
+                <View style={styles.adjustButtonsRow}>
+                  <TouchableOpacity style={styles.adjustAddButton} onPress={() => applyAdjustment('add')}>
+                    <Plus size={18} color="#FFFFFF" />
+                    <Text style={styles.adjustActionText}>إضافة</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.adjustSubtractButton} onPress={() => applyAdjustment('subtract')}>
+                    <Minus size={18} color="#FFFFFF" />
+                    <Text style={styles.adjustActionText}>خصم</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowAdjustForm(false)}>
+                  <Text style={styles.modalCloseButtonText}>إغلاق</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -976,5 +989,86 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_400Regular',
     color: '#6B7280',
     textAlign: 'right',
+  },
+  monthsToGoalSecondary: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#6B7280',
+    textAlign: 'right',
+    marginTop: 2,
+  },
+  adjustActions: {
+    marginTop: 8,
+  },
+  adjustButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  adjustButtonText: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_500Medium',
+    color: '#374151',
+  },
+  adjustButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  adjustAddButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  adjustSubtractButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  adjustActionText: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#FFFFFF',
+  },
+  adjustGoalName: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#1F2937',
+    textAlign: 'right',
+  },
+  adjustCurrentInfo: {
+    fontSize: 12,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#6B7280',
+    textAlign: 'right',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  modalCloseButton: {
+    marginTop: 12,
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#374151',
   },
 });

@@ -11,7 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { router } from 'expo-router';
-import { User, Settings, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Moon, Globe, Download, Share2 } from 'lucide-react-native';
+import { User, Settings, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Moon, Globe, Download, Share2,ChevronLeft } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import { useMyAppContext } from '@/context/MyAppContext';
 
@@ -101,43 +101,14 @@ export default function ProfileScreen() {
       switchValue: notifications,
       onSwitchChange: setNotifications,
     },
-    {
-      id: 'darkmode',
-      title: 'الوضع الليلي',
-      subtitle: 'تفعيل المظهر الداكن',
-      icon: <Moon size={20} color="#095028" />,
-      action: () => {},
-      hasSwitch: true,
-      switchValue: darkMode,
-      onSwitchChange: setDarkMode,
-    },
-    {
-      id: 'language',
-      title: 'اللغة',
-      subtitle: 'العربية',
-      icon: <Globe size={20} color="#095028" />,
-      action: () => Alert.alert('اللغة', 'قريباً - إعدادات اللغة'),
-    },
+
+   
     {
       id: 'privacy',
       title: 'الخصوصية والأمان',
       subtitle: 'إعدادات الحماية',
       icon: <Shield size={20} color="#095028" />,
       action: () => Alert.alert('الخصوصية', 'قريباً - إعدادات الخصوصية'),
-    },
-    {
-      id: 'backup',
-      title: 'النسخ الاحتياطي',
-      subtitle: 'حفظ واستعادة البيانات',
-      icon: <Download size={20} color="#095028" />,
-      action: () => Alert.alert('النسخ الاحتياطي', 'قريباً - النسخ الاحتياطي'),
-    },
-    {
-      id: 'share',
-      title: 'مشاركة التطبيق',
-      subtitle: 'أخبر أصدقاءك عن GrowUp',
-      icon: <Share2 size={20} color="#095028" />,
-      action: () => Alert.alert('مشاركة التطبيق', 'قريباً - مشاركة التطبيق'),
     },
     {
       id: 'help',
@@ -232,7 +203,7 @@ export default function ProfileScreen() {
                     thumbColor={option.switchValue ? '#095028' : '#9CA3AF'}
                   />
                 ) : (
-                  <ChevronRight size={16} color="#9CA3AF" />
+                  <ChevronLeft size={16} color="#9CA3AF" />
                 )}
               </View>
             </TouchableOpacity>
