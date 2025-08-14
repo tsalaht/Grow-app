@@ -2,195 +2,254 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
+  ScrollView,
+  FlatList,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  StatusBar,
+  Dimensions,
   Modal,
   Alert,
-  StyleSheet,
-  Dimensions,
-  StatusBar,
-  SafeAreaView,
-  Platform,
+  Pressable,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 
-type IconLib = 'Ionicons' | 'MaterialCommunityIcons';
+// Ensure Tajawal is applied to Text/TextInput when fonts are loaded
+// We cannot rely on defaultProps before fonts load; we gate render on fontsLoaded
+import Slider from '@react-native-community/slider';
+import { Feather as Icon } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
+import { ReminderModal } from '@/app/Components/ReminderModal';
+import TaskCard from '@/app/Components/TaskCard';
+import { useFonts, Tajawal_400Regular, Tajawal_700Bold } from '@expo-google-fonts/tajawal';
+import { Task } from '@/types/Task';
 
-const { width, height } = Dimensions.get('window');
+// Set default font for Text and TextInput across this screen
+// Safe to do at module scope and does not affect hooks
+// @ts-ignore
+Text.defaultProps = Text.defaultProps || {};
+// @ts-ignore
+Text.defaultProps.style = [Text.defaultProps.style, { fontFamily: 'Tajawal_400Regular' }];
+// @ts-ignore
+TextInput.defaultProps = TextInput.defaultProps || {};
+// @ts-ignore
+TextInput.defaultProps.style = [TextInput.defaultProps.style, { fontFamily: 'Tajawal_400Regular' }];
 
-// Types
-interface Task {
-  id: string;
-  title: string;
-  icon: string; // legacy emoji icon; kept for backward compatibility
-  iconLib?: IconLib;
-  iconName?: string; // professional icon name
-  notes: string;
-  status: 'completed' | 'in-progress' | 'overdue' | 'paused';
-  priority: 'urgent' | 'important' | 'normal' | 'low';
-  date: string;
-  time: string;
-  estimatedDuration: number;
-  progress: number;
-  category: 'daily' | 'weekly' | 'monthly';
-}
+
 
 interface PreDefinedTask {
   title: string;
-  iconLib: IconLib;
-  iconName: string;
+  icon: string;
   category: string;
 }
 
 // Pre-defined tasks data
-const preDefinedTasks: Record<'daily' | 'weekly' | 'monthly', PreDefinedTask[]> = {
+const preDefinedTasks = {
   daily: [
-    { title: 'الذهاب الي الجيم', iconLib: 'MaterialCommunityIcons', iconName: 'dumbbell', category: 'صحة' },
-    { title: 'بدء يوم العمل ومراجعة المهام', iconLib: 'Ionicons', iconName: 'briefcase-outline', category: 'عمل' },
-    { title: 'قراءة كتاب أو مقال مفيد', iconLib: 'Ionicons', iconName: 'book-outline', category: 'تطوير' },
-    { title: 'تناول وجبات صحية متوازنة', iconLib: 'Ionicons', iconName: 'nutrition-outline', category: 'صحة' },
-    { title: 'شرب كمية كافية من الماء', iconLib: 'Ionicons', iconName: 'water-outline', category: 'صحة' },
-    { title: 'مراجعة والرد على البريد الإلكتروني', iconLib: 'Ionicons', iconName: 'mail-outline', category: 'عمل' },
-    { title: 'جلسة تأمل أو استرخاء', iconLib: 'MaterialCommunityIcons', iconName: 'meditation', category: 'صحة' },
-    { title: 'ترتيب السرير والغرفة', iconLib: 'MaterialCommunityIcons', iconName: 'bed-outline', category: 'منزل' },
-    { title: 'متابعة الأخبار والتطورات المهمة', iconLib: 'Ionicons', iconName: 'newspaper-outline', category: 'عام' },
-    { title: 'التخطيط والاستعداد لليوم التالي', iconLib: 'Ionicons', iconName: 'calendar-outline', category: 'تنظيم' },
+    { title: 'الذهاب الي الجيم', icon: '🏋️', category: 'صحة' },
+    { title: 'بدء يوم العمل ومراجعة المهام', icon: '💼', category: 'عمل' },
+    { title: 'قراءة كتاب أو مقال مفيد', icon: '📖', category: 'تطوير' },
+    { title: 'تناول وجبات صحية متوازنة', icon: '🍎', category: 'صحة' },
+    { title: 'شرب كمية كافية من الماء', icon: '💧', category: 'صحة' },
+    { title: 'مراجعة والرد على البريد الإلكتروني', icon: '📧', category: 'عمل' },
+    { title: 'جلسة تأمل أو استرخاء', icon: '🧘‍♀️', category: 'صحة' },
+    { title: 'ترتيب السرير والغرفة', icon: '🛏️', category: 'منزل' },
+    { title: 'متابعة الأخبار والتطورات المهمة', icon: '📱', category: 'عام' },
+    { title: 'التخطيط والاستعداد لليوم التالي', icon: '🌅', category: 'تنظيم' },
+    { title: 'روتين العناية الشخصية', icon: '🚿', category: 'شخصي' },
+    { title: 'تحضير وجبة منزلية', icon: '🍳', category: 'منزل' },
+    { title: 'التواصل مع شخص مهم', icon: '📞', category: 'اجتماعي' },
+    { title: 'الاستماع للموسيقى أو البودكاست', icon: '🎵', category: 'ترفيه' },
+    { title: 'المشي أو النشاط البدني الخفيف', icon: '🚶‍♂️', category: 'صحة' },
+    { title: 'تناول الأدوية والفيتامينات', icon: '💊', category: 'صحة' },
+    { title: 'ممارسة تمارين ذهنية أو ألغاز', icon: '🧠', category: 'تطوير' },
+    { title: 'العناية بالنباتات المنزلية', icon: '🌱', category: 'منزل' },
+    { title: 'كتابة المذكرات اليومية', icon: '📝', category: 'شخصي' },
+    { title: 'أعمال التنظيف اليومية', icon: '🧹', category: 'منزل' },
   ],
   weekly: [
-    { title: 'اجتماع الفريق الأسبوعي', iconLib: 'Ionicons', iconName: 'people-outline', category: 'عمل' },
-    { title: 'زيارة الأهل والأصدقاء', iconLib: 'Ionicons', iconName: 'home-outline', category: 'اجتماعي' },
-    { title: 'التنظيف الشامل للمنزل', iconLib: 'MaterialCommunityIcons', iconName: 'broom', category: 'منزل' },
-    { title: 'تسوق احتياجات الأسبوع', iconLib: 'Ionicons', iconName: 'cart-outline', category: 'منزل' },
-    { title: 'مراجعة إنجازات الأسبوع', iconLib: 'Ionicons', iconName: 'stats-chart-outline', category: 'تنظيم' },
-    { title: 'فحص وصيانة السيارة', iconLib: 'MaterialCommunityIcons', iconName: 'car-wrench', category: 'صيانة' },
-    { title: 'حضور دورة تدريبية أو ورشة عمل', iconLib: 'Ionicons', iconName: 'school-outline', category: 'تطوير' },
-    { title: 'وقت ترفيه ومشاهدة', iconLib: 'Ionicons', iconName: 'film-outline', category: 'ترفيه' },
+    { title: 'اجتماع الفريق الأسبوعي', icon: '👥', category: 'عمل' },
+    { title: 'زيارة الأهل والأصدقاء', icon: '🏠', category: 'اجتماعي' },
+    { title: 'التنظيف الشامل للمنزل', icon: '🧹', category: 'منزل' },
+    { title: 'تسوق احتياجات الأسبوع', icon: '🛒', category: 'منزل' },
+    { title: 'مراجعة إنجازات الأسبوع', icon: '📊', category: 'تنظيم' },
+    { title: 'فحص وصيانة السيارة', icon: '🚗', category: 'صيانة' },
+    { title: 'حضور دورة تدريبية أو ورشة عمل', icon: '📚', category: 'تطوير' },
+    { title: 'وقت ترفيه ومشاهدة', icon: '🎬', category: 'ترفيه' },
+    { title: 'عمل نسخة احتياطية للملفات', icon: '💻', category: 'تقنية' },
+    { title: 'التخطيط للأسبوع القادم', icon: '📋', category: 'تنظيم' },
+    { title: 'جلسة تمارين مكثفة', icon: '🏋️‍♂️', category: 'صحة' },
+    { title: 'مراجعة وتحديث الأهداف', icon: '📝', category: 'تطوير' },
+    { title: 'تسوق الملابس والحاجيات', icon: '🛍️', category: 'شخصي' },
+    { title: 'ممارسة هواية إبداعية', icon: '🎨', category: 'ترفيه' },
+    { title: 'اتصالات عمل مهمة', icon: '📞', category: 'عمل' },
+    { title: 'زيارة طبيب أو فحص دوري', icon: '🏥', category: 'صحة' },
+    { title: 'نشاط خارجي أو رحلة قصيرة', icon: '🌳', category: 'ترفيه' },
+    { title: 'مراجعة الميزانية الأسبوعية', icon: '💰', category: 'مالي' },
+    { title: 'تنظيم وترتيب المخزن', icon: '📦', category: 'منزل' },
+    { title: 'أعمال صيانة منزلية', icon: '🔧', category: 'صيانة' },
   ],
   monthly: [
-    { title: 'دفع الفواتير والالتزامات الشهرية', iconLib: 'Ionicons', iconName: 'card-outline', category: 'مالي' },
-    { title: 'إجراء الفحوصات الطبية الدورية', iconLib: 'Ionicons', iconName: 'medkit-outline', category: 'صحة' },
-    { title: 'مراجعة شاملة للميزانية', iconLib: 'Ionicons', iconName: 'bar-chart-outline', category: 'مالي' },
-    { title: 'تقييم وتحديث الأهداف طويلة المدى', iconLib: 'Ionicons', iconName: 'target-outline', category: 'تطوير' },
-    { title: 'تنظيم الوثائق والملفات المهمة', iconLib: 'Ionicons', iconName: 'folder-open-outline', category: 'تنظيم' },
-    { title: 'إعداد التقارير الشهرية', iconLib: 'Ionicons', iconName: 'document-text-outline', category: 'عمل' },
-  ]
+    { title: 'دفع الفواتير والالتزامات الشهرية', icon: '💰', category: 'مالي' },
+    { title: 'إجراء الفحوصات الطبية الدورية', icon: '🏥', category: 'صحة' },
+    { title: 'مراجعة شاملة للميزانية', icon: '📈', category: 'مالي' },
+    { title: 'تقييم وتحديث الأهداف طويلة المدى', icon: '🎯', category: 'تطوير' },
+    { title: 'تنظيم الوثائق والملفات المهمة', icon: '🗂️', category: 'تنظيم' },
+    { title: 'إعداد التقارير الشهرية', icon: '📊', category: 'عمل' },
+    { title: 'شراء المستلزمات الأساسية الكبيرة', icon: '🛍️', category: 'منزل' },
+    { title: 'أعمال الصيانة والتجديد', icon: '🏠', category: 'صيانة' },
+    { title: 'إنهاء قراءة كتاب كامل', icon: '📚', category: 'تطوير' },
+    { title: 'وضع خطة الشهر القادم', icon: '🌟', category: 'تنظيم' },
+    { title: 'مراجعة الأداء المهني', icon: '💼', category: 'عمل' },
+    { title: 'تحديث السيرة الذاتية والملف المهني', icon: '🧾', category: 'عمل' },
+    { title: 'الاحتفال بالإنجازات الكبيرة', icon: '🎉', category: 'شخصي' },
+    { title: 'تحديث التطبيقات والأنظمة', icon: '📱', category: 'تقنية' },
+    { title: 'تقييم الصحة النفسية والذهنية', icon: '🧘‍♀️', category: 'صحة' },
+    { title: 'تقييم التطور التعليمي والمهني', icon: '🎓', category: 'تطوير' },
+    { title: 'مراجعة الإنجازات والنجاحات', icon: '🏆', category: 'شخصي' },
+    { title: 'مراجعة العلاقات الاجتماعية', icon: '📞', category: 'اجتماعي' },
+    { title: 'التخطيط للرحلات والإجازات', icon: '🌍', category: 'ترفيه' },
+    { title: 'مراجعة الأفكار والمشاريع الجديدة', icon: '💡', category: 'تطوير' },
+  ],
 };
 
-type FormState = {
-  title: string;
-  icon: string;
-  notes: string;
-  priority: 'urgent' | 'important' | 'normal' | 'low';
-  date: string;
-  time: string;
-  estimatedDuration: number;
-  category: 'daily' | 'weekly' | 'monthly';
-  iconLib: IconLib;
-  iconName: string;
-};
-
-const dailyGoals: React.FC = () => {
-  const [fontsLoaded] = useFonts({ Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium });
-
+const TaskManager: React.FC = () => {
+  const [fontsLoaded] = useFonts({ Tajawal_400Regular, Tajawal_700Bold });
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly'>('daily');
+  const [activeTab, setActiveTab] = useState<'all' | 'daily' | 'weekly' | 'monthly'>('daily');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [showPreDefinedTasks, setShowPreDefinedTasks] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [expandedNotes, setExpandedNotes] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterPriority, setFilterPriority] = useState('');
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Task>>({});
-  
+  const [isReminderVisible, setReminderVisible] = useState(false);
+  const [isEditReminderVisible, setEditReminderVisible] = useState(false);
+  const [priorityPickerVisible, setPriorityPickerVisible] = useState(false);
+  const [categoryPickerVisible, setCategoryPickerVisible] = useState(false);
+
   // Form state
-  const [formData, setFormData] = useState<FormState>({
+  interface FormData {
+    title: string;
+    icon: string;
+    notes: string;
+    priority: 'urgent' | 'important' | 'normal' | 'low';
+    date: string;
+    time: string;
+    estimatedDuration: number;
+    category: 'daily' | 'weekly' | 'monthly';
+  }
+
+  const [formData, setFormData] = useState<FormData>({
     title: '',
     icon: '',
     notes: '',
-    priority: 'normal' as const,
+    priority: 'normal',
     date: '',
     time: '',
     estimatedDuration: 30,
-    category: activeTab,
-    iconLib: 'Ionicons',
-    iconName: ''
+    category: 'daily',
   });
 
   useEffect(() => {
-    loadTasks();
-  }, []);
-
-  useEffect(() => {
-    saveTasks();
-  }, [tasks]);
-
-  useEffect(() => {
-    setFormData(prev => ({ ...prev, category: activeTab }));
+    setFormData((prev) => ({
+      ...prev,
+      category: activeTab === 'all' ? (prev.category || 'daily') : activeTab,
+    }));
   }, [activeTab]);
-
-  const loadTasks = async () => {
-    try {
-      const savedTasks = await AsyncStorage.getItem('tasks');
-      if (savedTasks) {
-        setTasks(JSON.parse(savedTasks));
-      }
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-    }
-  };
-
-  const saveTasks = async () => {
-    try {
-      await AsyncStorage.setItem('tasks', JSON.stringify(tasks));
-    } catch (error) {
-      console.error('Error saving tasks:', error);
-    }
-  };
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
-  const getCurrentTasks = () => {
-    return tasks.filter(task => task.category === activeTab);
+  const formatDate = (date: Date): string => {
+    return date.toISOString().split('T')[0];
   };
 
-  const getFilteredPreDefinedTasks = () => {
-    const currentPreDefinedTasks = preDefinedTasks[activeTab];
-    return currentPreDefinedTasks.filter(task => {
+  const formatTime = (date: Date): string => {
+    const hh = String(date.getHours()).padStart(2, '0');
+    const mm = String(date.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
+  const parseDateString = (value?: string): Date => {
+    if (!value) return new Date();
+    const [y, m, d] = value.split('-').map((v) => parseInt(v, 10));
+    if (!y || !m || !d) return new Date();
+    return new Date(y, m - 1, d);
+  };
+
+  const parseTimeOnDate = (base: Date, value?: string): Date => {
+    const result = new Date(base);
+    if (value) {
+      const [h, m] = value.split(':').map((v) => parseInt(v, 10));
+      result.setHours(h || 0, m || 0, 0, 0);
+    }
+    return result;
+  };
+
+  const getCurrentTasks = () => {
+    let filteredTasks = activeTab === 'all' ? tasks : tasks.filter((task) => task.category === activeTab);
+    if (filterStatus) {
+      filteredTasks = filteredTasks.filter((task) => task.status === filterStatus);
+    }
+    if (filterPriority) {
+      filteredTasks = filteredTasks.filter((task) => task.priority === filterPriority);
+    }
+    return filteredTasks;
+  };
+
+  const getFilteredPreDefinedTasks = (): PreDefinedTask[] => {
+    const currentPreDefinedTasks: PreDefinedTask[] =
+      activeTab === 'all'
+        ? ([
+            ...preDefinedTasks.daily,
+            ...preDefinedTasks.weekly,
+            ...preDefinedTasks.monthly,
+          ] as PreDefinedTask[])
+        : (preDefinedTasks[activeTab as 'daily' | 'weekly' | 'monthly'] as PreDefinedTask[]);
+    return currentPreDefinedTasks.filter((task: PreDefinedTask) => {
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === '' || task.category === selectedCategory;
       return matchesSearch && matchesCategory;
     });
   };
 
-  const getUniqueCategories = () => {
-    const currentPreDefinedTasks = preDefinedTasks[activeTab];
-    return [...new Set(currentPreDefinedTasks.map(task => task.category))];
+  const getUniqueCategories = (): string[] => {
+    const currentPreDefinedTasks: PreDefinedTask[] =
+      activeTab === 'all'
+        ? ([
+            ...preDefinedTasks.daily,
+            ...preDefinedTasks.weekly,
+            ...preDefinedTasks.monthly,
+          ] as PreDefinedTask[])
+        : (preDefinedTasks[activeTab as 'daily' | 'weekly' | 'monthly'] as PreDefinedTask[]);
+    const categories = currentPreDefinedTasks.map((task: PreDefinedTask) => task.category as string);
+    return Array.from(new Set<string>(categories));
   };
 
   const handleSelectPreDefinedTask = (task: PreDefinedTask) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       title: task.title,
-      icon: '',
-      iconLib: task.iconLib,
-      iconName: task.iconName
+      icon: task.icon,
     }));
-    setShowPreDefinedTasks(false);
+    setShowDropdown(false);
     setSearchTerm('');
     setSelectedCategory('');
   };
 
   const handleSubmit = () => {
     if (formData.title.trim()) {
+      const selectedCategory = (formData.category as 'daily' | 'weekly' | 'monthly') || (activeTab === 'all' ? 'daily' : activeTab);
       const newTask: Task = {
         id: generateId(),
         title: formData.title,
         icon: formData.icon,
-        iconLib: formData.iconName ? formData.iconLib : undefined,
-        iconName: formData.iconName || undefined,
         notes: formData.notes,
         status: 'in-progress',
         priority: formData.priority,
@@ -198,10 +257,12 @@ const dailyGoals: React.FC = () => {
         time: formData.time || '09:00',
         estimatedDuration: formData.estimatedDuration,
         progress: 0,
-        category: activeTab
+        category: selectedCategory,
       };
-      
-      setTasks(prev => [...prev, newTask]);
+      setTasks((prev) => [...prev, newTask]);
+      // Reset filters so the new task is visible immediately
+      setFilterStatus('');
+      setFilterPriority('');
       setFormData({
         title: '',
         icon: '',
@@ -210,943 +271,1078 @@ const dailyGoals: React.FC = () => {
         date: '',
         time: '',
         estimatedDuration: 30,
-        category: activeTab,
-        iconLib: 'Ionicons',
-        iconName: ''
+        category: activeTab === 'all' ? selectedCategory : activeTab,
       });
       setShowAddForm(false);
     }
   };
 
   const updateTask = (id: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(task => 
-      task.id === id ? { ...task, ...updates } : task
-    ));
+    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, ...updates } : task)));
   };
 
   const deleteTask = (id: string) => {
     Alert.alert(
-      'حذف المهمة',
+      'تأكيد الحذف',
       'هل أنت متأكد من حذف هذه المهمة؟',
       [
-        { text: 'إلغاء', style: 'cancel' },
-        { text: 'حذف', style: 'destructive', onPress: () => {
-          setTasks(prev => prev.filter(task => task.id !== id));
-        }}
+        {
+          text: 'إلغاء',
+          style: 'cancel',
+        },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: () => {
+            setTasks((prev) => prev.filter((task) => task.id !== id));
+          },
+        },
       ]
     );
   };
 
   const duplicateTask = (task: Task) => {
+    console.log('Duplicating task:', task.id);
     const newTask = {
       ...task,
       id: generateId(),
       title: `نسخة من ${task.title}`,
       status: 'in-progress' as const,
-      progress: 0
+      progress: 0,
     };
-    setTasks(prev => [...prev, newTask]);
+    setTasks((prev) => {
+      const newTasks = [...prev, newTask];
+      console.log('Tasks after duplication:', newTasks.length);
+      return newTasks;
+    });
+  };
+
+  const startEditTask = (task: Task) => {
+    setEditingTask(task.id);
+    setEditFormData({
+      title: task.title,
+      icon: task.icon,
+      notes: task.notes,
+      priority: task.priority,
+      date: task.date,
+      time: task.time,
+      estimatedDuration: task.estimatedDuration,
+    });
+  };
+
+  const saveEditTask = () => {
+    if (editingTask && editFormData.title?.trim()) {
+      updateTask(editingTask, editFormData);
+      setEditingTask(null);
+      setEditFormData({});
+    }
+  };
+
+  const cancelEditTask = () => {
+    setEditingTask(null);
+    setEditFormData({});
   };
 
   const toggleTaskCompletion = (task: Task) => {
     const newStatus = task.status === 'completed' ? 'in-progress' : 'completed';
-    const newProgress = newStatus === 'completed' ? 100 : task.progress;
+    const newProgress = newStatus === 'completed' ? 100 : 0;
     updateTask(task.id, { status: newStatus, progress: newProgress });
+  };
+
+  const toggleNoteExpansion = (taskId: string) => {
+    setExpandedNotes((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Icon name="check-circle" size={20} color="#22c55e" />;
+      case 'in-progress':
+        return <Icon name="clock" size={20} color="#3b82f6" />;
+      case 'overdue':
+        return <Icon name="alert-circle" size={20} color="#ef4444" />;
+      case 'paused':
+        return <Icon name="pause" size={20} color="#eab308" />;
+      default:
+        return <Icon name="clock" size={20} color="#9ca3af" />;
+    }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return '#fee2e2';
-      case 'important': return '#fef3c7';
-      case 'normal': return '#dcfce7';
-      case 'low': return '#dbeafe';
-      default: return '#f3f4f6';
+      case 'urgent':
+        return { backgroundColor: '#fee2e2', color: '#b91c1c', borderColor: '#fecaca' };
+      case 'important':
+        return { backgroundColor: '#fef9c3', color: '#a16207', borderColor: '#fef08a' };
+      case 'normal':
+        return { backgroundColor: '#d1fae5', color: '#15803d', borderColor: '#a7f3d0' };
+      case 'low':
+        return { backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' };
+      default:
+        return { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' };
     }
   };
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'عاجل';
-      case 'important': return 'مهم';
-      case 'normal': return 'عادي';
-      case 'low': return 'منخفض';
-      default: return 'عادي';
+      case 'urgent':
+        return 'عاجل 🔥';
+      case 'important':
+        return 'مهم 🟡';
+      case 'normal':
+        return 'عادي 🟢';
+      case 'low':
+        return 'منخفض 🔵';
+      default:
+        return 'عادي';
     }
   };
 
   const getTabLabel = (tab: string) => {
     switch (tab) {
-      case 'daily': return 'يومية';
-      case 'weekly': return 'أسبوعية';
-      case 'monthly': return 'شهرية';
-      default: return tab;
+      case 'daily':
+        return 'يومية';
+      case 'weekly':
+        return 'أسبوعية';
+      case 'monthly':
+        return 'شهرية';
+      case 'all':
+        return 'الكل';
+      default:
+        return tab;
     }
   };
 
-  const renderIcon = (
-    lib: IconLib,
-    name: string,
-    size = 24,
-    color = '#15803d'
-  ) => {
-    if (!name) return null;
-    if (lib === 'MaterialCommunityIcons') {
-      return <MaterialCommunityIcons name={name as any} size={size} color={color} />;
+  const getTabIcon = (tab: string) => {
+    switch (tab) {
+      case 'daily':
+        return '🗓️';
+      case 'weekly':
+        return '📅';
+      case 'monthly':
+        return '📆';
+      case 'all':
+        return '📋';
+      default:
+        return '📋';
     }
-    return <Ionicons name={name as any} size={size} color={color} />;
   };
 
-  const TaskCard = ({ task }: { task: Task }) => (
-    <View style={styles.taskCard}>
-      <View style={styles.taskHeader}>
-        <View style={styles.taskInfo}>
-          {renderIcon(
-            task.iconName ? (task.iconLib || 'Ionicons') : 'Ionicons',
-            task.iconName || 'list-outline',
-            24,
-            '#15803d'
-          )}
-          <View style={styles.taskDetails}>
-            <Text style={[
-              styles.taskTitle,
-              task.status === 'completed' && styles.completedTask
-            ]}>
-              {task.title}
-            </Text>
-            <View style={styles.taskMeta}>
-              <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(task.priority) }]}>
-                <Text style={styles.priorityText}>{getPriorityLabel(task.priority)}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Ionicons name="calendar-outline" size={12} color="#16a34a" />
-                <Text style={styles.taskDate}>{task.date}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-        
-        <TouchableOpacity
-          onPress={() => toggleTaskCompletion(task)}
-          style={[
-            styles.completionButton,
-            task.status === 'completed' && styles.completedButton
-          ]}
-        >
-          {task.status === 'completed' ? (
-            <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
-          ) : (
-            <Ionicons name="ellipse-outline" size={20} color="#6b7280" />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {task.notes && (
-        <View style={styles.notesContainer}>
-          <Text style={styles.notesText}>{task.notes}</Text>
-        </View>
-      )}
-
-      {task.status !== 'completed' && (
-        <View style={styles.progressContainer}>
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressLabel}>التقدم</Text>
-            <Text style={styles.progressValue}>{task.progress}%</Text>
-          </View>
-          <View style={styles.progressBar}>
-            <View 
-              style={[
-                styles.progressFill,
-                { width: `${task.progress}%` }
-              ]}
-            />
-          </View>
-        </View>
-      )}
-
-      <View style={styles.taskActions}>
-        <TouchableOpacity
-          onPress={() => duplicateTask(task)}
-          style={styles.actionButton}
-        >
-          <Ionicons name="copy-outline" size={18} color="#1f2937" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          onPress={() => deleteTask(task.id)}
-          style={styles.actionButton}
-        >
-          <Ionicons name="trash-outline" size={18} color="#dc2626" />
-        </TouchableOpacity>
-        
-        <View style={styles.durationContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Ionicons name="time-outline" size={14} color="#16a34a" />
-            <Text style={styles.durationText}>{task.estimatedDuration} دقيقة</Text>
-          </View>
-        </View>
-      </View>
-    </View>
+  const renderTaskCard = ({ item }: { item: Task }) => (
+    <TaskCard
+      task={item}
+      editingTask={editingTask}
+      editFormData={editFormData}
+      expandedNotes={expandedNotes}
+      onToggleCompletion={toggleTaskCompletion}
+      onStartEdit={startEditTask}
+      onSaveEdit={saveEditTask}
+      onCancelEdit={cancelEditTask}
+      onDelete={deleteTask}
+      onDuplicate={duplicateTask}
+      onUpdateTask={updateTask}
+      onToggleNoteExpansion={toggleNoteExpansion}
+      onSetEditFormData={setEditFormData}
+      onSetEditReminderVisible={setEditReminderVisible}
+    />
   );
 
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#f0fdf4" />
-        {!fontsLoaded && null}
-        
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}> المهام</Text>
-          
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f0fdf4" />
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>📋 مدير المهام العربي المتطور</Text>
+        <View style={styles.headerButtons}>
           <TouchableOpacity
-            onPress={() => setShowAddForm(true)}
+            onPress={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
+            style={styles.headerButton}
+          >
+            <Icon name="menu" size={24} color="#4b5563" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowAddForm(!showAddForm)}
             style={styles.addButton}
           >
-            <Ionicons name="add" size={24} color="white" />
+            <Icon name="plus" size={24} color="#ffffff" />
           </TouchableOpacity>
         </View>
-
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          {(['daily', 'weekly', 'monthly'] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setActiveTab(tab)}
-              style={[
-                styles.tab,
-                activeTab === tab && styles.activeTab
-              ]}
-            >
-              <Text style={[
-                styles.tabText,
-                activeTab === tab && styles.activeTabText
-              ]}>
-                {getTabLabel(tab)}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      </View>
+      <View style={styles.tabsContainer}>
+        {(['all', 'daily', 'weekly', 'monthly'] as const).map((tab) => (
+          <TouchableOpacity
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={[
+              styles.tabButton,
+              activeTab === tab && styles.activeTab,
+            ]}
+          >
+            <Text style={styles.tabIcon}>{getTabIcon(tab)}</Text>
+            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+              {getTabLabel(tab)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <View style={styles.filtersContainer}>
+        <View style={styles.filterPicker}>
+          <Picker
+            selectedValue={filterStatus}
+            onValueChange={(value) => setFilterStatus(value)}
+            style={styles.pickerText}
+            itemStyle={styles.pickerText}
+          >
+            <Picker.Item label="جميع الحالات" value="" />
+            <Picker.Item label="مكتملة ✅" value="completed" />
+            <Picker.Item label="قيد التنفيذ ⏳" value="in-progress" />
+            <Picker.Item label="متأخرة 🔴" value="overdue" />
+            <Picker.Item label="مؤجلة ⏸️" value="paused" />
+          </Picker>
         </View>
-
-        {/* Tasks List */}
-        <ScrollView style={styles.tasksContainer} showsVerticalScrollIndicator={false}>
-          {getCurrentTasks().length > 0 ? (
-            <>
-              {/* Stats */}
-              <View style={styles.statsContainer}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>
-                    {getCurrentTasks().filter(t => t.status === 'completed').length}
-                  </Text>
-                  <Text style={styles.statLabel}>مكتملة</Text>
-                </View>
-                
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>
-                    {getCurrentTasks().filter(t => t.status === 'in-progress').length}
-                  </Text>
-                  <Text style={styles.statLabel}>قيد التنفيذ</Text>
-                </View>
-              </View>
-
-              {/* Tasks */}
-              {getCurrentTasks().map((task) => (
-                <TaskCard key={task.id} task={task} />
-              ))}
-            </>
-          ) : (
-              <View style={styles.emptyState}>
-                <View style={{ marginBottom: 16 }}>
-                  <Ionicons name="document-text-outline" size={64} color="#94a3b8" />
-                </View>
-                <Text style={styles.emptyTitle}>لا توجد مهام بعد</Text>
-                <Text style={styles.emptySubtitle}>ابدأ بإضافة مهمة جديدة لتنظيم يومك</Text>
-                <TouchableOpacity
-                  onPress={() => setShowAddForm(true)}
-                  style={styles.emptyButton}
-                >
-                  <Text style={styles.emptyButtonText}>إضافة أول مهمة</Text>
-                </TouchableOpacity>
-              </View>
-          )}
-        </ScrollView>
-
-        {/* Add Task Modal */}
-        <Modal
-          visible={showAddForm}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>إضافة مهمة جديدة</Text>
+        <View style={styles.filterPicker}>
+          <Picker
+            selectedValue={filterPriority}
+            onValueChange={(value) => setFilterPriority(value)}
+            style={styles.pickerText}
+            itemStyle={styles.pickerText}
+          >
+            <Picker.Item label="جميع الأولويات" value="" />
+            <Picker.Item label="عاجل 🔥" value="urgent" />
+            <Picker.Item label="مهم 🟡" value="important" />
+            <Picker.Item label="عادي 🟢" value="normal" />
+            <Picker.Item label="منخفض 🔵" value="low" />
+          </Picker>
+        </View>
+      </View>
+      <ScrollView style={styles.mainContent}>
+        {showAddForm && (
+          <View style={styles.addFormContainer}>
+            <View style={styles.addFormHeader}>
+              <Text style={styles.addFormTitle}>➕ إضافة مهمة جديدة</Text>
               <TouchableOpacity
                 onPress={() => setShowAddForm(false)}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={16} color="#6b7280" />
+                <Icon name="x" size={24} color="#22c55e" />
               </TouchableOpacity>
             </View>
-
-            <ScrollView style={styles.formContainer}>
-              {/* Pre-defined Tasks Button */}
-              <TouchableOpacity
-                onPress={() => setShowPreDefinedTasks(true)}
-                style={styles.preDefinedButton}
-              >
-                <Text style={styles.preDefinedButtonText}>استعراض العناوين الجاهزة</Text>
-                <Ionicons name="document-text-outline" size={20} color="#15803d" />
-              </TouchableOpacity>
-
-              {/* Title Input */}
+            <View style={styles.formContent}>
+              <View style={styles.dropdownContainer}>
+                <Text style={styles.label}>اختر من العناوين الجاهزة</Text>
+                <TouchableOpacity
+                  onPress={() => setShowDropdown(!showDropdown)}
+                  style={styles.dropdownButton}
+                >
+                  <Text style={styles.dropdownText}>استعراض العناوين الجاهزة</Text>
+                  <Icon
+                    name={showDropdown ? 'chevron-up' : 'chevron-down'}
+                    size={20}
+                    color="#22c55e"
+                  />
+                </TouchableOpacity>
+                {showDropdown && (
+                  <Modal
+                    visible={showDropdown}
+                    transparent
+                    animationType="slide"
+                    onRequestClose={() => setShowDropdown(false)}
+                  >
+                    <View style={styles.modalOverlay}>
+                      <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                          <Text style={styles.modalTitle}>اختر من العناوين الجاهزة</Text>
+                          <TouchableOpacity
+                            onPress={() => setShowDropdown(false)}
+                            style={styles.closeModalButton}
+                          >
+                            <Icon name="x" size={24} color="#22c55e" />
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.searchSection}>
+                          <View style={styles.searchContainer}>
+                            <Icon name="search" size={16} color="#22c55e" style={styles.searchIcon} />
+                            <TextInput
+                              style={styles.searchInput}
+                              placeholder="بحث في العناوين..."
+                              value={searchTerm}
+                              onChangeText={setSearchTerm}
+                            />
+                          </View>
+                          <View style={styles.categoryPicker}>
+                            <Picker
+                              selectedValue={selectedCategory}
+                              onValueChange={(value) => setSelectedCategory(value)}
+                              style={styles.pickerText}
+                              itemStyle={styles.pickerText}
+                            >
+                              <Picker.Item label="جميع الفئات" value="" />
+                              {getUniqueCategories().map((category) => (
+                                <Picker.Item key={category} label={category} value={category} />
+                              ))}
+                            </Picker>
+                          </View>
+                        </View>
+                        <ScrollView style={styles.predefinedList}>
+                          {getFilteredPreDefinedTasks().map((item, index) => (
+                            <TouchableOpacity
+                              key={index.toString()}
+                              onPress={() => handleSelectPreDefinedTask(item)}
+                              style={styles.predefinedTask}
+                            >
+                              <Text style={styles.predefinedIcon}>{item.icon}</Text>
+                              <View style={styles.predefinedInfo}>
+                                <Text style={styles.predefinedTitle}>{item.title}</Text>
+                                <View style={styles.categoryBadge}>
+                                  <Text style={styles.categoryText}>{item.category}</Text>
+                                </View>
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    </View>
+                  </Modal>
+                )}
+              </View>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>عنوان المهمة</Text>
-                <View style={styles.titleInputContainer}>
+                <Text style={styles.label}>عنوان المهمة</Text>
+                <View style={styles.inputRow}>
                   <TextInput
                     style={styles.titleInput}
                     placeholder="أدخل عنوان المهمة..."
                     value={formData.title}
-                    onChangeText={(text) => setFormData(prev => ({...prev, title: text}))}
-                    multiline
+                    onChangeText={(text) => setFormData((prev) => ({ ...prev, title: text }))}
+                  />
+                  <TextInput
+                    style={styles.iconInput}
+                    placeholder="🎯"
+                    value={formData.icon}
+                    onChangeText={(text) => setFormData((prev) => ({ ...prev, icon: text }))}
                   />
                 </View>
               </View>
-
-              {/* Icon Picker */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>الأيقونة</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.iconPickerContainer}
-                >
-                  {[
-                    { lib: 'MaterialCommunityIcons' as const, name: 'dumbbell' },
-                    { lib: 'Ionicons' as const, name: 'book-outline' },
-                    { lib: 'Ionicons' as const, name: 'water-outline' },
-                    { lib: 'Ionicons' as const, name: 'mail-outline' },
-                    { lib: 'MaterialCommunityIcons' as const, name: 'meditation' },
-                    { lib: 'MaterialCommunityIcons' as const, name: 'broom' },
-                    { lib: 'Ionicons' as const, name: 'calendar-outline' },
-                    { lib: 'Ionicons' as const, name: 'people-outline' },
-                    { lib: 'Ionicons' as const, name: 'cart-outline' },
-                    { lib: 'Ionicons' as const, name: 'stats-chart-outline' },
-                    { lib: 'Ionicons' as const, name: 'cash-outline' },
-                    { lib: 'Ionicons' as const, name: 'document-text-outline' },
-                  ].map((ic) => (
-                    <TouchableOpacity
-                      key={`${ic.lib}:${ic.name}`}
-                      onPress={() => setFormData(prev => ({...prev, iconLib: ic.lib, iconName: ic.name}))}
-                      style={[
-                        styles.iconOption,
-                        formData.iconLib === ic.lib && formData.iconName === ic.name && styles.selectedIconOption,
-                      ]}
-                    >
-                      {renderIcon(ic.lib, ic.name, 24, '#15803d')}
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* Notes Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>الملاحظات التفصيلية</Text>
+                <Text style={styles.label}>الملاحظات التفصيلية</Text>
                 <TextInput
                   style={styles.notesInput}
                   placeholder="اكتب الملاحظات التفصيلية للمهمة..."
                   value={formData.notes}
-                  onChangeText={(text) => setFormData(prev => ({...prev, notes: text}))}
+                  onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
                   multiline
                   numberOfLines={3}
                 />
               </View>
-
-              {/* Priority and Duration */}
-              <View style={styles.rowInputs}>
-                <View style={styles.halfInput}>
-                  <Text style={styles.inputLabel}>الأولوية</Text>
-                  <View style={styles.priorityContainer}>
-                    {['urgent', 'important', 'normal', 'low'].map((priority) => (
-                      <TouchableOpacity
-                        key={priority}
-                        onPress={() => setFormData(prev => ({...prev, priority: priority as any}))}
-                        style={[
-                          styles.priorityOption,
-                          formData.priority === priority && styles.selectedPriority,
-                          { backgroundColor: getPriorityColor(priority) }
-                        ]}
-                      >
-                        <Text style={styles.priorityOptionText}>
-                          {getPriorityLabel(priority)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                <View style={styles.halfInput}>
-                  <Text style={styles.inputLabel}>المدة (دقيقة)</Text>
+              <View style={styles.formGrid}>
+                 <View style={styles.formItem}>
+                   <Text style={styles.label}>الأولوية</Text>
+                   <TouchableOpacity style={styles.input} onPress={() => setPriorityPickerVisible(true)}>
+                     <Text style={{ fontSize: 14, color: '#15803d', textAlign: 'right', fontFamily: 'Tajawal_400Regular' }}>
+                       {formData.priority === 'urgent' ? 'عاجل 🔥' : formData.priority === 'important' ? 'مهم 🟡' : formData.priority === 'low' ? 'منخفض 🔵' : 'عادي 🟢'}
+                     </Text>
+                   </TouchableOpacity>
+                 </View>
+                 <View style={styles.formItem}>
+                   <Text style={styles.label}>الفئة</Text>
+                   <TouchableOpacity style={styles.input} onPress={() => setCategoryPickerVisible(true)}>
+                     <Text style={{ fontSize: 14, color: '#15803d', textAlign: 'right', fontFamily: 'Tajawal_400Regular' }}>
+                       {formData.category === 'daily' ? 'يومية' : formData.category === 'weekly' ? 'أسبوعية' : 'شهرية'}
+                     </Text>
+                   </TouchableOpacity>
+                 </View>
+                <View style={styles.formItem}>
+                  <Text style={styles.label}>المدة (دقيقة)</Text>
                   <TextInput
-                    style={styles.durationInput}
-                    placeholder="30"
+                    style={styles.input}
                     value={formData.estimatedDuration.toString()}
-                    onChangeText={(text) => setFormData(prev => ({
-                      ...prev, 
-                      estimatedDuration: parseInt(text) || 30
-                    }))}
+                    onChangeText={(text) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        estimatedDuration: parseInt(text) || 30,
+                      }))
+                    }
                     keyboardType="numeric"
                   />
                 </View>
+                <View style={styles.formItem}>
+                  <Text style={{...styles.label,textAlign:"right"}}>التاريخ والوقت</Text>
+                  <TouchableOpacity
+                    style={styles.input}
+                    onPress={() => setReminderVisible(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 14, color: '#15803d', textAlign: 'right', fontFamily: 'Tajawal_400Regular' }}>
+                      {(formData.date && formData.time) ? `${formData.date} ${formData.time}` : 'اختر التاريخ والوقت'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-
-              {/* Submit Button */}
-              <TouchableOpacity
-                onPress={handleSubmit}
-                style={styles.submitButton}
-              >
+              <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
                 <Text style={styles.submitButtonText}>إضافة المهمة</Text>
               </TouchableOpacity>
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
-
-              {/* Pre-defined Tasks Modal */}
-        <Modal
-          visible={showPreDefinedTasks}
-          animationType="slide"
-          presentationStyle="pageSheet"
-        >
-          <SafeAreaView style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>العناوين الجاهزة</Text>
+            </View>
+          </View>
+        )}
+        <View style={styles.tasksContainer}>
+          {getCurrentTasks().length > 0 ? (
+            <>
+              <View style={styles.statsContainer}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>
+                    {getCurrentTasks().filter((t) => t.status === 'completed').length}
+                  </Text>
+                  <Text style={styles.statLabel}>مكتملة</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>
+                    {getCurrentTasks().filter((t) => t.status === 'in-progress').length}
+                  </Text>
+                  <Text style={styles.statLabel}>قيد التنفيذ</Text>
+                </View>
+              </View>
+              <FlatList
+                data={getCurrentTasks()}
+                keyExtractor={(item) => item.id}
+                renderItem={renderTaskCard}
+                style={styles.taskList}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              />
+            </>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyIcon}>📝</Text>
+              <Text style={styles.emptyTitle}>لا توجد مهام بعد</Text>
+              <Text style={styles.emptyText}>ابدأ بإضافة مهمة جديدة لتنظيم يومك</Text>
               <TouchableOpacity
-                onPress={() => setShowPreDefinedTasks(false)}
-                style={styles.closeButton}
+                onPress={() => setShowAddForm(true)}
+                style={styles.addFirstTaskButton}
               >
-                <Ionicons name="close" size={16} color="#6b7280" />
+                <Text style={styles.addFirstTaskText}>إضافة أول مهمة</Text>
               </TouchableOpacity>
             </View>
+          )}
+        </View>
+      </ScrollView>
+      <View style={styles.bottomNav}>
+        <Text style={styles.bottomNavText}>
+          {getCurrentTasks().length} مهمة في {getTabLabel(activeTab)}
+        </Text>
+        <Text style={styles.bottomNavText}>
+          متوسط التقدم:{' '}
+          {Math.round(
+            getCurrentTasks().reduce((acc, task) => acc + task.progress, 0) /
+              getCurrentTasks().length || 0
+          )}
+          %
+        </Text>
+      </View>
+      {/* Reminder modals */}
+      <ReminderModal
+        visible={isReminderVisible}
+        currentReminder={parseTimeOnDate(parseDateString(formData.date), formData.time)}
+        onClose={() => setReminderVisible(false)}
+        onSetReminder={(date) => {
+          setFormData((prev) => ({ ...prev, date: formatDate(date), time: formatTime(date) }));
+          setReminderVisible(false);
+        }}
+      />
+      {/* Priority Picker Modal (custom) */}
+      <Modal visible={priorityPickerVisible} transparent animationType="fade" onRequestClose={() => setPriorityPickerVisible(false)}>
+        <View style={styles.overlayCenter}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>اختر الأولوية</Text>
+            {[
+              { label: 'عاجل 🔥', value: 'urgent' },
+              { label: 'مهم 🟡', value: 'important' },
+              { label: 'عادي 🟢', value: 'normal' },
+              { label: 'منخفض 🔵', value: 'low' },
+            ].map((opt) => (
+              <TouchableOpacity key={opt.value} style={styles.modalOption} onPress={() => { setFormData((p) => ({ ...p, priority: opt.value as any })); setPriorityPickerVisible(false); }}>
+                <Text style={styles.modalOptionText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => setPriorityPickerVisible(false)} style={styles.modalCancel}>
+              <Text style={styles.modalCancelText}>إلغاء</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="بحث في العناوين..."
-                value={searchTerm}
-                onChangeText={setSearchTerm}
-              />
-            </View>
-
-            <ScrollView style={styles.preDefinedList}>
-              {getFilteredPreDefinedTasks().map((task, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => handleSelectPreDefinedTask(task)}
-                  style={styles.preDefinedItem}
-                >
-                  {renderIcon(task.iconLib, task.iconName, 24, '#15803d')}
-                  <View style={styles.preDefinedInfo}>
-                    <Text style={styles.preDefinedTitle}>{task.title}</Text>
-                    <Text style={styles.preDefinedCategory}>{task.category}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
-      </SafeAreaView>
-    </SafeAreaProvider>
+      {/* Category Picker Modal (custom) */}
+      <Modal visible={categoryPickerVisible} transparent animationType="fade" onRequestClose={() => setCategoryPickerVisible(false)}>
+        <View style={styles.overlayCenter}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>اختر الفئة</Text>
+            {[
+              { label: 'يومية', value: 'daily' },
+              { label: 'أسبوعية', value: 'weekly' },
+              { label: 'شهرية', value: 'monthly' },
+            ].map((opt) => (
+              <TouchableOpacity key={opt.value} style={styles.modalOption} onPress={() => { setFormData((p) => ({ ...p, category: opt.value as any })); setCategoryPickerVisible(false); }}>
+                <Text style={styles.modalOptionText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => setCategoryPickerVisible(false)} style={styles.modalCancel}>
+              <Text style={styles.modalCancelText}>إلغاء</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      <ReminderModal
+        visible={isEditReminderVisible}
+        currentReminder={parseTimeOnDate(parseDateString(editFormData.date), editFormData.time)}
+        onClose={() => setEditReminderVisible(false)}
+        onSetReminder={(date) => {
+          setEditFormData((prev) => ({ ...prev, date: formatDate(date), time: formatTime(date) }));
+          setEditReminderVisible(false);
+        }}
+      />
+    </SafeAreaView>
   );
 };
+
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+ backgroundColor: '#F8FAFC',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
+    padding: 16,
+    backgroundColor: '#f0fdf4',
     borderBottomWidth: 1,
-    borderBottomColor: '#dcfce7',
+    borderBottomColor: '#a7f3d0',
   },
   headerTitle: {
-    fontSize: 18,
-
+    fontSize: 20,
+    fontFamily: 'Tajawal_700Bold',
     color: '#15803d',
     textAlign: 'right',
-    fontFamily: 'Tajawal_700Bold',
+  },
+  headerButtons: {
+  flexDirection: 'row-reverse',
+    gap: 8,
+  },
+  headerButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f0fdf4',
   },
   addButton: {
-    backgroundColor: '#16a34a',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    fontSize: 20,
-    color: 'white',
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#22c55e',
   },
   tabsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#dcfce7',
-    margin: 20,
+ flexDirection: 'row-reverse',
+    backgroundColor: '#ecfdf5',
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
     borderRadius: 12,
-    padding: 4,
+    marginHorizontal: 16,
+    marginVertical: 8,
   },
-  tab: {
+  tabButton: {
     flex: 1,
-    paddingVertical: 12,
+   flexDirection: 'row-reverse',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
   },
   activeTab: {
-    backgroundColor: 'white',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
   },
+  tabIcon: {
+    fontSize: 16,
+    marginRight: 4,
+    fontFamily: 'Tajawal_400Regular',
+  },
   tabText: {
     fontSize: 14,
     color: '#16a34a',
-
-    fontFamily: 'Tajawal_500Medium',
+    fontFamily: 'Tajawal_400Regular',
   },
   activeTabText: {
     color: '#15803d',
-
     fontFamily: 'Tajawal_700Bold',
   },
-  tasksContainer: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-  },
-  statNumber: {
-    fontSize: 24,
-
-    color: '#16a34a',
-    fontFamily: 'Tajawal_700Bold',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#16a34a',
-    marginTop: 4,
-    fontFamily: 'Tajawal_400Regular',
-  },
-  taskCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  taskHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  taskInfo: {
-    flexDirection: 'row',
-    flex: 1,
-    gap: 12,
-  },
-  taskIcon: {
-    fontSize: 24,
-  },
-  taskDetails: {
-    flex: 1,
-  },
-  taskTitle: {
-    fontSize: 16,
-
-    color: '#1f2937',
-    textAlign: 'right',
-    lineHeight: 22,
-    fontFamily: 'Tajawal_700Bold',
-  },
-  completedTask: {
-    textDecorationLine: 'line-through',
-    color: '#16a34a',
-  },
-  taskMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  filtersContainer: {
+ flexDirection: 'row-reverse',
     gap: 8,
-    marginTop: 4,
+    paddingHorizontal: 16,
+    marginVertical: 8,
   },
-  priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  priorityText: {
-    fontSize: 10,
-
-    fontFamily: 'Tajawal_500Medium',
-  },
-  taskDate: {
-    fontSize: 10,
-    color: '#16a34a',
-    fontFamily: 'Tajawal_400Regular',
-  },
-  completionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-  },
-  completedButton: {
-    backgroundColor: '#dcfce7',
-  },
-  completionButtonText: {
-    fontSize: 16,
-  },
-  notesContainer: {
-    backgroundColor: '#F8FAFC',
-    padding: 8,
+  filterPicker: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
     borderRadius: 8,
-    marginBottom: 8,
+    backgroundColor: '#ffffff',
   },
-  notesText: {
+  pickerText: {
     fontSize: 12,
     color: '#15803d',
     textAlign: 'right',
-    lineHeight: 18,
     fontFamily: 'Tajawal_400Regular',
   },
-  progressContainer: {
-    marginBottom: 8,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  progressLabel: {
-    fontSize: 12,
-    color: '#16a34a',
-    fontFamily: 'Tajawal_400Regular',
-  },
-  progressValue: {
-    fontSize: 12,
+  // helper style for Android picker dropdown items
+  pickerItemText: {
+    fontSize: 14,
     color: '#15803d',
- 
-    fontFamily: 'Tajawal_700Bold',
+    fontFamily: 'Tajawal_400Regular',
+    textAlign: 'right',
   },
-  progressBar: {
-    height: 4,
-    backgroundColor: '#dcfce7',
-    borderRadius: 2,
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#16a34a',
-    borderRadius: 2,
+  addFormContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginVertical: 12,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  taskActions: {
-    flexDirection: 'row',
+  addFormHeader: {
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#dcfce7',
-  },
-  actionButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-  actionButtonText: {
-    fontSize: 16,
-    fontFamily: 'Tajawal_400Regular',
-  },
-  durationContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  durationText: {
-    fontSize: 12,
-    color: '#16a34a',
-    fontFamily: 'Tajawal_400Regular',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyIcon: {
-    fontSize: 64,
     marginBottom: 16,
   },
-  emptyTitle: {
+  addFormTitle: {
     fontSize: 18,
-
+    fontFamily: 'Tajawal_700Bold',
     color: '#15803d',
-    marginBottom: 8,
-    textAlign: 'center',
-    fontFamily: 'Tajawal_700Bold',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#16a34a',
-    textAlign: 'center',
-    marginBottom: 24,
-    fontFamily: 'Tajawal_400Regular',
-  },
-  emptyButton: {
-    backgroundColor: '#16a34a',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  emptyButtonText: {
-    color: 'white',
-    fontSize: 16,
-
-    fontFamily: 'Tajawal_700Bold',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#dcfce7',
-  },
-  modalTitle: {
-    fontSize: 18,
-    color: '#15803d',
-    fontFamily: 'Tajawal_700Bold',
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
+    padding: 8,
   },
-  closeButtonText: {
-    fontSize: 16,
-    color: '#6b7280',
+  formContent: {
+    gap: 16,
   },
-  formContainer: {
-    flex: 1,
-    padding: 20,
+  dropdownContainer: {
+    gap: 8,
   },
-  preDefinedButton: {
-    backgroundColor: '#dcfce7',
-    padding: 16,
-    borderRadius: 12,
-    flexDirection: 'row',
+  dropdownButton: {
+  flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 8,
+    padding: 12,
   },
-  preDefinedButtonText: {
-    fontSize: 16,
-    color: '#15803d',
-
-    fontFamily: 'Tajawal_500Medium',
-  },
-  preDefinedButtonIcon: {
-    fontSize: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
+  dropdownText: {
     fontSize: 14,
     color: '#15803d',
-    marginBottom: 8,
-    textAlign: 'right',
-    fontFamily: 'Tajawal_500Medium',
+    fontFamily: 'Tajawal_400Regular',
   },
-  titleInputContainer: {
-    flexDirection: 'row',
+  dropdownContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    maxHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  overlayCenter: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  modalTitle: {
+    fontSize: 16,
+    color: '#15803d',
+    marginBottom: 12,
+    textAlign: 'center',
+    fontFamily: 'Tajawal_700Bold',
+  },
+  modalOption: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalOptionText: {
+    fontSize: 14,
+    color: '#15803d',
+    textAlign: 'center',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  modalCancel: {
+    marginTop: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingVertical: 10,
+  },
+  modalCancelText: {
+    textAlign: 'center',
+    color: '#6b7280',
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    height: '80%',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#a7f3d0',
+    backgroundColor: '#ecfdf5',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  closeModalButton: {
+    padding: 8,
+  },
+  searchSection: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#a7f3d0',
+    backgroundColor: '#f8fafc',
+  },
+  dropdownSearch: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#a7f3d0',
+    backgroundColor: '#ecfdf5',
+  },
+  searchContainer: {
+ flexDirection: 'row-reverse',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  searchIcon: {
+    marginHorizontal: 8,
+  },
+  searchInput: {
+    flex: 1,
+    padding: 8,
+    fontSize: 14,
+    color: '#15803d',
+    textAlign: 'right',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  categoryPicker: {
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+  },
+  predefinedList: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  predefinedTask: {
+ flexDirection: 'row-reverse',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#a7f3d0',
+  },
+  predefinedIcon: {
+    fontSize: 20,
+    marginRight: 8,
+    fontFamily: 'Tajawal_400Regular',
+  },
+  predefinedInfo: {
+    flex: 1,
+  },
+  predefinedTitle: {
+    fontSize: 14,
+    color: '#15803d',
+    fontFamily: 'Tajawal_400Regular',
+    textAlign: 'right',
+  },
+  categoryBadge: {
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  categoryText: {
+    fontSize: 12,
+    color: '#15803d',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  inputGroup: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    color: '#15803d',
+    fontFamily: 'Tajawal_400Regular',
+    textAlign: 'right',
+  },
+  inputRow: {
+    flexDirection: 'row-reverse',
     gap: 8,
   },
   titleInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#dcfce7',
-    borderRadius: 12,
+    borderColor: '#a7f3d0',
+    borderRadius: 8,
     padding: 12,
-    fontSize: 16,
+    fontSize: 14,
+    color: '#15803d',
     textAlign: 'right',
-    backgroundColor: 'white',
     fontFamily: 'Tajawal_400Regular',
   },
   iconInput: {
     width: 60,
     borderWidth: 1,
-    borderColor: '#dcfce7',
-    borderRadius: 12,
+    borderColor: '#a7f3d0',
+    borderRadius: 8,
     padding: 12,
     fontSize: 20,
     textAlign: 'center',
-    backgroundColor: 'white',
+    color: '#15803d',
+    fontFamily: 'Tajawal_400Regular',
   },
   notesInput: {
     borderWidth: 1,
-    borderColor: '#dcfce7',
-    borderRadius: 12,
-    paddingHorizontal: 12,
+    borderColor: '#a7f3d0',
+    borderRadius: 8,
+    padding: 12,
     fontSize: 14,
+    color: '#15803d',
     textAlign: 'right',
-    backgroundColor: 'white',
-    minHeight: 100,
+    textAlignVertical: 'top',
     fontFamily: 'Tajawal_400Regular',
-    paddingVertical:8
   },
-  rowInputs: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  halfInput: {
-    flex: 1,
-  },
-  priorityContainer: {
+  formGrid: {
+ flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  priorityOption: {
-    padding: 12,
+  formItem: {
+    flex: 1,
+    minWidth: (width - 48) / 2,
+    gap: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-  },
-  selectedPriority: {
-    borderWidth: 2,
-    borderColor: '#16a34a',
-  },
-  priorityOptionText: {
-    fontSize: 12,
-    textAlign: 'center',
- 
-    fontFamily: 'Tajawal_500Medium',
-  },
-  durationInput: {
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    textAlign: 'center',
-    backgroundColor: 'white',
+    padding: 8,
+    fontSize: 14,
+    color: '#15803d',
+    textAlign: 'right',
     fontFamily: 'Tajawal_400Regular',
+  },
+  picker: {
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
   },
   submitButton: {
-    backgroundColor: '#16a34a',
+    backgroundColor: '#22c55e',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom:60
   },
   submitButtonText: {
-    color: 'white',
     fontSize: 16,
-
+    color: '#ffffff',
     fontFamily: 'Tajawal_700Bold',
   },
-  searchContainer: {
-    padding: 20,
-    backgroundColor: '#dcfce7',
+  tasksContainer: {
+    marginVertical: 12,
   },
-  searchInput: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    textAlign: 'right',
+  statsContainer: {
+ flexDirection: 'row-reverse',
+    gap: 8,
+    marginBottom: 12,
   },
-  preDefinedList: {
+  statCard: {
     flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
   },
-  iconPickerContainer: {
-    paddingVertical: 4,
+  statValue: {
+    fontSize: 20,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#22c55e',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#22c55e',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  taskList: {
+    flexGrow: 0,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    color: '#9ca3af',
+    marginBottom: 16,
+    fontFamily: 'Tajawal_400Regular',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#15803d',
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#22c55e',
+    marginBottom: 16,
+    fontFamily: 'Tajawal_400Regular',
+  },
+  addFirstTaskButton: {
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  addFirstTaskText: {
+    fontSize: 16,
+    color: '#ffffff',
+    fontFamily: 'Tajawal_700Bold',
+  },
+  bottomNav: {
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#a7f3d0',
+    padding: 12,
+    alignItems: 'center',
+  },
+  bottomNavText: {
+    fontSize: 12,
+    color: '#22c55e',
+    textAlign: 'center',
+    fontFamily: 'Tajawal_400Regular',
+  },
+  editContainer: {
     gap: 8,
   },
-  iconOption: {
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-    marginRight: 8,
-  },
-  selectedIconOption: {
-    borderColor: '#16a34a',
-    borderWidth: 2,
-  },
-  preDefinedItem: {
-    flexDirection: 'row',
+  editHeader: {
+   flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginBottom: 8,
-    borderRadius: 12,
-    gap: 12,
   },
-  preDefinedIcon: {
-    fontSize: 24,
+  editTitle: {
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+    color: '#15803d',
   },
-  preDefinedInfo: {
-    flex: 1,
+  editButtons: {
+ flexDirection: 'row-reverse',
+    gap: 8,
   },
-  preDefinedTitle: {
-    fontSize: 16,
-    color: '#1f2937',
-    textAlign: 'right',
-    marginBottom: 4,
-    fontFamily: 'Tajawal_500Medium',
-  },
-  preDefinedCategory: {
-    fontSize: 12,
-    color: '#16a34a',
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  saveButton: {
+    backgroundColor: '#22c55e',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
-    alignSelf: 'flex-end',
+  },
+  cancelButton: {
+    backgroundColor: '#6b7280',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  buttonText: {
+    fontSize: 12,
+    color: '#ffffff',
     fontFamily: 'Tajawal_400Regular',
+  },
+  editForm: {
+    gap: 8,
+  },
+  checkCircleContainer: {
+    marginRight: 8,
+    justifyContent: 'center',
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkCircleCompleted: {
+    backgroundColor: '#22c55e',
+    borderColor: '#22c55e',
   },
 });
 
-export default dailyGoals;
+export default TaskManager;

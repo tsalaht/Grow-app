@@ -5,19 +5,24 @@ import { I18nManager } from 'react-native';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import NotificationService from '@/services/NotificationService';
 import { MyAppProvider, useMyAppContext } from '@/context/MyAppContext';
+import * as Updates from 'expo-updates';
+
 
 function RootLayoutContent() {
   const { hasCompletedOnboarding, hasCompletedLogin, isLoading } = useMyAppContext();
+  if (I18nManager.isRTL) {
+  I18nManager.allowRTL(false);
+  I18nManager.forceRTL(false);
+  // Reload so changes apply immediately on first run
+  if (Updates?.reloadAsync) {
+    Updates.reloadAsync();
+  }
+}
   const router = useRouter();
 
   console.log('App State - Onboarding:', hasCompletedOnboarding, 'Login:', hasCompletedLogin);
 
-  useEffect(() => {
-    if (I18nManager.isRTL) {
-      I18nManager.forceRTL(false);
-      I18nManager.allowRTL(false);
-    }
-  }, []);
+
   useFrameworkReady();
 
   useEffect(() => {

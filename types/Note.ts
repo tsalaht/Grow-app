@@ -9,6 +9,10 @@ export interface Note {
   createdAt: Date;
   updatedAt: Date;
   color?: string;
+  imageUri?: any;
+  textFormats?:any 
+   fontSize:any;
+        textAlignment:any;// Optional image URI for the note
 }
 
 export type FilterType = 'all' | 'reminders' | 'pinned' | 'tags';

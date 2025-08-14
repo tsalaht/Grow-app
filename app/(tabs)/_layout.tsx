@@ -1,11 +1,12 @@
 import { Tabs } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
-import { useFonts, Tajawal_400Regular } from '@expo-google-fonts/tajawal';
+import { useFonts, Tajawal_400Regular, Tajawal_700Bold } from '@expo-google-fonts/tajawal';
 import { Home, Target, TrendingUp, CreditCard, Trophy, Brain } from 'lucide-react-native';
 
 export default function TabLayout() {
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
+    Tajawal_700Bold,
   });
 
   if (!fontsLoaded) {

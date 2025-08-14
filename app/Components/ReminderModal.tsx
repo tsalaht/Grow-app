@@ -12,8 +12,6 @@ import { X, Calendar, Clock } from 'lucide-react-native';
 
 
 
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
 interface ReminderModalProps {
   visible: boolean;
   onClose: () => void;
@@ -120,28 +118,28 @@ export function ReminderModal({
               <View style={styles.quickOptions}>
                 <Text style={styles.quickOptionsTitle}>خيارات سريعة</Text>
                 <View style={styles.quickOptionsRow}>
-                  <TouchableOpacity 
-                    style={styles.quickOption}
-                    onPress={() => {
-                      const tomorrow = new Date();
-                      tomorrow.setDate(tomorrow.getDate() + 1);
-                      tomorrow.setHours(9, 0, 0, 0);
-                      setSelectedDate(tomorrow);
-                    }}
-                  >
-                    <Text style={styles.quickOptionText}>غداً 9 ص</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.quickOption}
-                    onPress={() => {
-                      const nextWeek = new Date();
-                      nextWeek.setDate(nextWeek.getDate() + 7);
-                      nextWeek.setHours(9, 0, 0, 0);
-                      setSelectedDate(nextWeek);
-                    }}
-                  >
-                    <Text style={styles.quickOptionText}>الأسبوع القادم</Text>
-                  </TouchableOpacity>
+          <TouchableOpacity 
+  style={styles.quickOption}
+  onPress={() => {
+    const afterOneHour = new Date();
+    afterOneHour.setHours(afterOneHour.getHours() + 1);
+    setSelectedDate(afterOneHour);
+  }}
+>
+  <Text style={styles.quickOptionText}>بعد ساعة</Text>
+</TouchableOpacity>
+
+<TouchableOpacity 
+  style={styles.quickOption}
+  onPress={() => {
+    const afterTwoHours = new Date();
+    afterTwoHours.setHours(afterTwoHours.getHours() + 2);
+    setSelectedDate(afterTwoHours);
+  }}
+>
+  <Text style={styles.quickOptionText}>بعد ساعتين</Text>
+</TouchableOpacity>
+
                 </View>
               </View>
             </View>

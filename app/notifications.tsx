@@ -485,12 +485,12 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   headerContent: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   titleContainer: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
   },
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   permissionHeader: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
@@ -541,14 +541,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   permissionButton: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#095028',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
     gap: 8,
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start',
   },
   permissionButtonText: {
     fontSize: 14,
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   statsContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     gap: 12,
     marginBottom: 24,
   },
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   categoryHeader: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     alignItems: 'center',
     marginBottom: 12,
     gap: 8,
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     elevation: 1,
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   settingLeft: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     flex: 1,
     gap: 12,

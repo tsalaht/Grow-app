@@ -109,41 +109,7 @@ export function TextFormattingModal({
             </View>
 
             {/* Alignment Section */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>محاذاة النص والقوائم</Text>
-              <View style={styles.formatRow}>
-                <FormatButton
-                  icon={<AlignRight size={20} color="#374151" />}
-                  label="يمين"
-                  onPress={() => onFormatChange('align-right')}
-                />
-                <FormatButton
-                  icon={<AlignCenter size={20} color="#374151" />}
-                  label="وسط"
-                  onPress={() => onFormatChange('align-center')}
-                />
-                <FormatButton
-                  icon={<AlignLeft size={20} color="#374151" />}
-                  label="يسار"
-                  onPress={() => onFormatChange('align-left')}
-                />
-                <FormatButton
-                  icon={<AlignJustify size={20} color="#374151" />}
-                  label="ضبط كامل"
-                  onPress={() => onFormatChange('align-justify')}
-                />
-                <FormatButton
-                  icon={<List size={20} color="#374151" />}
-                  label="قائمة نقطية"
-                  onPress={() => onFormatChange('bullet-list')}
-                />
-                <FormatButton
-                  icon={<ListOrdered size={20} color="#374151" />}
-                  label="قائمة مرقمة"
-                  onPress={() => onFormatChange('numbered-list')}
-                />
-              </View>
-            </View>
+      
 
             {/* Font Size Section */}
             <View style={styles.section}>
@@ -210,7 +176,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Cairo-Bold',
     color: '#111827',
-    textAlign: 'right',
+    textAlign: 'left',
     marginBottom: 12,
   },
   formatRow: {

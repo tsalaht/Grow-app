@@ -16,8 +16,7 @@ import { Chrome as Home, Car, CalendarDays } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
 
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
+
 
 interface MonthlyData {
   year: number;
@@ -782,7 +781,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   header: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -795,7 +794,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   headerIcons: {
-    flexDirection: 'row',
+  flexDirection: 'row-reverse',
     alignItems: 'center',
   },
   notificationBadge: {
@@ -852,11 +851,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tabsList: {
-    flexDirection: 'row',
+  flexDirection: 'row-reverse',
     gap: 8,
   },
   tab: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
@@ -901,7 +900,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   incomeHeader: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
     marginBottom: 12,
@@ -925,7 +924,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   summaryContainer: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     flexWrap: 'wrap',
     gap: 12,
     marginBottom: 24,
@@ -963,7 +962,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
     marginBottom: 12,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   table: {
     backgroundColor: '#FFFFFF',
@@ -976,7 +975,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   tableHeader: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     backgroundColor: '#F9FAFB',
     paddingVertical: 12,
     paddingHorizontal: 8,
@@ -989,7 +988,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   tableRow: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
@@ -1003,7 +1002,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   addButton: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#095028',
     paddingHorizontal: 20,
@@ -1029,7 +1028,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     elevation: 1,
@@ -1046,13 +1045,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_500Medium',
     color: '#374151',
     marginBottom: 2,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   expenseCategory: {
     fontSize: 12,
     fontFamily: 'Tajawal_400Regular',
     color: '#6B7280',
-    textAlign: 'left',
+    textAlign: 'right',
   },
   expenseAmount: {
     fontSize: 14,
@@ -1066,7 +1065,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
+  flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     elevation: 1,
@@ -1173,7 +1172,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   modalHeader: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
@@ -1193,7 +1192,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   saveButton: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#095028',
     paddingHorizontal: 20,
@@ -1208,7 +1207,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   typeSelector: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     gap: 12,
     marginBottom: 16,
   },
@@ -1259,7 +1258,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   categoryOption: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
@@ -1333,7 +1332,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   dropdownButton: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
@@ -1344,7 +1343,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   dropdownButtonContent: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
     flex: 1,
@@ -1376,7 +1375,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   dropdownItem: {
-    flexDirection: 'row',
+  flexDirection: 'row-reverse',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,

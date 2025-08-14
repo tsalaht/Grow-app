@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   header: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   headerContent: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
@@ -732,10 +732,10 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 8,
     marginTop: 16,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   dropdownButton: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_400Regular',
     color: '#374151',
     flex: 1,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   placeholderText: {
     color: '#9CA3AF',
@@ -764,16 +764,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_400Regular',
     backgroundColor: '#FFFFFF',
     marginBottom: 8,
-    textAlign: 'left',
+    textAlign: 'right',
   },
   dateContainer: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     gap: 12,
     marginBottom: 8,
   },
   dateDropdown: {
     flex: 1,
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
@@ -802,7 +802,7 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
@@ -828,7 +828,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
   },
   modalOptionContent: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
     justifyContent: 'center',
@@ -863,7 +863,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   emptyAddButton: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#095028',
     paddingHorizontal: 20,
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   goalHeader: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     marginBottom: 12,
   },
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     color: '#095028',
   },
   goalAmounts: {
-    flexDirection: 'row',
+  flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
@@ -947,16 +947,18 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 12,
+     flexDirection: 'row-reverse',
   },
   progressFill: {
     height: '100%',
     backgroundColor: '#095028',
     borderRadius: 4,
+    
   },
   goalFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'flex-end',
   },
   goalFooterLeft: {
     flex: 1,
@@ -1022,7 +1024,7 @@ const styles = StyleSheet.create({
   },
   adjustAddButton: {
     flex: 1,
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -1032,7 +1034,7 @@ const styles = StyleSheet.create({
   },
   adjustSubtractButton: {
     flex: 1,
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,

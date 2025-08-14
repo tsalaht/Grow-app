@@ -15,8 +15,7 @@ import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from
 import { useMyAppContext } from '@/context/MyAppContext';
 
 // Enable RTL for Arabic
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
+
 
 export default function LoginScreen() {
   const { setHasCompletedLogin } = useMyAppContext();

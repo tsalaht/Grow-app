@@ -30,9 +30,7 @@ import { useMyAppContext } from '@/context/MyAppContext';
 import { useRouter } from 'expo-router';
 import Logo from '../Logo';
 
-// Enable RTL for Arabic
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
+
 
 interface DashboardCardProps {
   title: string;
@@ -242,7 +240,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   headerContent: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
@@ -304,13 +302,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   cardHeader: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
   cardTitleContainer: {
-    flexDirection: 'row',
+   flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
   },
@@ -357,6 +355,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     borderRadius: 4,
     overflow: 'hidden',
+      flexDirection: 'row-reverse', 
   },
   progressFill: {
     height: '100%',
@@ -420,10 +419,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
-    textAlign: 'left',
+    textAlign: 'right',
   },
   activityItem: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -436,7 +435,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   activityLeft: {
-    flexDirection: 'row',
+ flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
   },

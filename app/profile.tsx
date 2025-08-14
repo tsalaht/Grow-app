@@ -15,8 +15,6 @@ import { User, Settings, Bell, Shield, CircleHelp as HelpCircle, LogOut, Chevron
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import { useMyAppContext } from '@/context/MyAppContext';
 
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
 
 interface ProfileOption {
   id: string;
@@ -108,15 +106,23 @@ export default function ProfileScreen() {
       title: 'الخصوصية والأمان',
       subtitle: 'إعدادات الحماية',
       icon: <Shield size={20} color="#095028" />,
-      action: () => Alert.alert('الخصوصية', 'قريباً - إعدادات الخصوصية'),
+      action: () => router.push('/privacy-security'),
     },
     {
-      id: 'help',
-      title: 'المساعدة والدعم',
-      subtitle: 'الأسئلة الشائعة والدعم الفني',
-      icon: <HelpCircle size={20} color="#095028" />,
-      action: () => Alert.alert('المساعدة', 'قريباً - المساعدة والدعم'),
+      id: 'terms',
+      title: 'شروط الاستخدام',
+      subtitle: 'الشروط والأحكام',
+      icon: <Shield size={20} color="#095028" />,
+      action: () => router.push('/terms-of-use'),
     },
+    {
+      id: 'refund',
+      title: 'سياسة استرداد الأموال',
+      subtitle: 'سياسة الاسترداد',
+      icon: <Shield size={20} color="#095028" />,
+      action: () => router.push('/refund-policy'),
+    },
+
     {
       id: 'reset',
       title: 'إعادة تعيين الإعدادات',
@@ -255,7 +261,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     marginBottom: 20,
     elevation: 2,
@@ -323,7 +329,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   statsContainer: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     gap: 12,
     marginBottom: 24,
   },
@@ -363,7 +369,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   optionItem: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
@@ -371,7 +377,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F3F4F6',
   },
   optionLeft: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     flex: 1,
   },
@@ -404,7 +410,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   logoutButton: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',

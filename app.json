@@ -1,10 +1,12 @@
 {
   "expo": {
     "name": "growUp",
+      "entryPoint": "./app/entry.js",
     "slug": "grow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo2.png",
+    
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,18 +13,19 @@ import {
   Image as RNImage,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, MoveHorizontal as MoreHorizontal, Save, Undo2, Redo2, Users, Bookmark, Star, Smile, Image, Mic, AlignLeft, Type, Clock,Notebook } from 'lucide-react-native';
-import { NotesService } from '../../services/NotesService';
-import { ReminderModal } from '../Components/ReminderModal';
-import { TextFormattingModal } from '../Components/TextFormattingModal';
+import { ArrowLeft, MoveHorizontal as MoreHorizontal, Save, Undo2, Redo2, Users, Bookmark, Star, Smile, Image, AlignLeft, Type, Clock, Trash2 } from 'lucide-react-native';
+import { NotesService } from '../services/NotesService';
+import { ReminderModal } from './Components/ReminderModal';
+import { TextFormattingModal } from './Components/TextFormattingModal';
 import { Note } from '@/types/Note';
 
 
 
-export default function CreateNoteScreen() {
+export default function EditNoteScreen() {
   const router = useRouter();
+  const { noteId } = useLocalSearchParams();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isPinned, setIsPinned] = useState(false);
@@ -46,6 +47,39 @@ export default function CreateNoteScreen() {
   const [reminderButtonScale] = useState(new Animated.Value(1));
   const [isSettingReminder, setIsSettingReminder] = useState(false);
 
+  // Load note data
+  useEffect(() => {
+    const loadNote = async () => {
+      if (typeof noteId !== 'string') {
+        Alert.alert('خطأ', 'معرف الملاحظة غير صالح');
+        router.back();
+        return;
+      }
+      try {
+        const note = await NotesService.getNoteById(noteId);
+        if (note) {
+          setTitle(note.title);
+          setContent(note.content);
+          setIsPinned(note.isPinned);
+          setReminder(note.reminder ?? null);
+          setFontSize(note.fontSize || 16);
+          setTextAlignment(note.textAlignment || 'right');
+          setTextFormats(note.textFormats || []);
+          setSelectedImage(note.imageUri || null);
+          setHistory([{ title: note.title, content: note.content }]);
+          setHistoryIndex(0);
+        } else {
+          Alert.alert('خطأ', 'الملاحظة غير موجودة');
+          router.back();
+        }
+      } catch (error) {
+        Alert.alert('خطأ', 'فشل في تحميل الملاحظة');
+        router.back();
+      }
+    };
+    loadNote();
+  }, [noteId]);
+
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
@@ -63,7 +97,7 @@ export default function CreateNoteScreen() {
 
     if (!result.canceled) {
       setSelectedImage(result.assets[0].uri);
-      saveToHistory(title, content); // Save state to history after picking image
+      saveToHistory(title, content);
     }
   };
 
@@ -130,7 +164,8 @@ export default function CreateNoteScreen() {
     ]).start();
 
     try {
-      const newNote: Omit<Note, 'id'> = {
+      const updatedNote: Note = {
+        id: noteId as string,
         title: title.trim(),
         content: content.trim(),
         isPinned,
@@ -139,24 +174,48 @@ export default function CreateNoteScreen() {
         isTask: false,
         createdAt: new Date(),
         updatedAt: new Date(),
-        imageUri: selectedImage, // Include image URI in note
-        textFormats, // Save formatting
+        imageUri: selectedImage,
+        textFormats,
         fontSize,
         textAlignment,
       };
 
-      await NotesService.createNote(newNote);
+      await NotesService.updateNote(updatedNote);
       
       setTimeout(() => {
         setIsSaving(false);
-        Alert.alert('تم الحفظ', 'تم حفظ الملاحظة بنجاح', [
-          { text: 'موافق', onPress: () => router.push('/ShowNotesScreen') }
+        Alert.alert('تم الحفظ', 'تم تحديث الملاحظة بنجاح', [
+          { text: 'موافق', onPress: () => router.back() }
         ]);
       }, 300);
     } catch (error) {
       setIsSaving(false);
-      Alert.alert('خطأ', 'لم يتم حفظ الملاحظة');
+      Alert.alert('خطأ', 'لم يتم تحديث الملاحظة');
     }
+  };
+
+  const handleDelete = async () => {
+    Alert.alert(
+      'تأكيد الحذف',
+      'هل أنت متأكد من حذف هذه الملاحظة؟',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await NotesService.deleteNote(noteId as string);
+              Alert.alert('تم الحذف', 'تم حذف الملاحظة بنجاح', [
+                { text: 'موافق', onPress: () => router.back() }
+              ]);
+            } catch (error) {
+              Alert.alert('خطأ', 'لم يتم حذف الملاحظة');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleSetReminder = (selectedDate: Date) => {
@@ -179,7 +238,7 @@ export default function CreateNoteScreen() {
           : [...prev, format]
       );
     }
-    saveToHistory(title, content); // Save state to history after formatting change
+    saveToHistory(title, content);
   };
 
   const getTextStyle = () => {
@@ -229,20 +288,14 @@ export default function CreateNoteScreen() {
         
         <View style={styles.headerCenter}>
           <TouchableOpacity 
-            style={[
-              styles.headerButton,
-              historyIndex <= 0 && styles.headerButtonDisabled
-            ]}
+            style={[styles.headerButton, historyIndex <= 0 && styles.headerButtonDisabled]}
             onPress={handleUndo}
             disabled={historyIndex <= 0}
           >
             <Undo2 size={20} color={historyIndex <= 0 ? "#9CA3AF" : "#374151"} />
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[
-              styles.headerButton,
-              historyIndex >= history.length - 1 && styles.headerButtonDisabled
-            ]}
+            style={[styles.headerButton, historyIndex >= history.length - 1 && styles.headerButtonDisabled]}
             onPress={handleRedo}
             disabled={historyIndex >= history.length - 1}
           >
@@ -266,17 +319,16 @@ export default function CreateNoteScreen() {
           >
             <Star size={20} color={isPinned ? "#FFD700" : "#ffffff"} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton}>
-            <MoreHorizontal size={20} color="#ffffff" />
+          <TouchableOpacity style={styles.headerButton} onPress={handleDelete}>
+            <Trash2 size={20} color="#EF4444" />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Content Area */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Title Input */}
         <TextInput
-          style={[styles.titleInput,]} // Apply formatting to title
+          style={[styles.titleInput, getTextStyle()]}
           placeholder="عنوان الملاحظة..."
           placeholderTextColor="#9CA3AF"
           value={title}
@@ -284,9 +336,7 @@ export default function CreateNoteScreen() {
           textAlign="right"
           multiline
         />
-
-        {/* Selected Image Display */}
-     {selectedImage && (
+        {selectedImage && (
           <View style={styles.imageContainer}>
             <RNImage
               source={{ uri: selectedImage }}
@@ -295,9 +345,6 @@ export default function CreateNoteScreen() {
             />
           </View>
         )}
-
-        {/* Content Input */}
-        
         <TextInput
           style={[styles.contentInput, getTextStyle()]}
           placeholder="اكتب ملاحظتك هنا..."
@@ -308,12 +355,10 @@ export default function CreateNoteScreen() {
           multiline
           textAlignVertical="top"
         />
-     
       </ScrollView>
 
       {/* Bottom Toolbar */}
       <View style={styles.bottomToolbar}>
-        {/* Center Section */}
         <View style={styles.toolbarCenterFull}>
           <TouchableOpacity 
             style={styles.toolbarButton}
@@ -327,7 +372,9 @@ export default function CreateNoteScreen() {
           >
             <AlignLeft size={20} color="#000000" />
           </TouchableOpacity>
-        
+          <TouchableOpacity style={styles.toolbarButton}>
+            <Smile size={20} color="#000000" />
+          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.toolbarButton}
             onPress={() => setIsFormattingModalVisible(true)}
@@ -336,13 +383,9 @@ export default function CreateNoteScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Actions Row */}
         <View style={styles.toolbarActionsRow}>
           <Animated.View 
-            style={[
-              styles.toolbarActionWrapper,
-              { transform: [{ scale: reminderButtonScale }], opacity: isSettingReminder ? 0.8 : 1 }
-            ]}
+            style={[styles.toolbarActionWrapper, { transform: [{ scale: reminderButtonScale }], opacity: isSettingReminder ? 0.8 : 1 }]}
           >
             <TouchableOpacity 
               style={[styles.buttonContainer, styles.reminderButtonContainer]}
@@ -360,10 +403,7 @@ export default function CreateNoteScreen() {
           </Animated.View>
 
           <Animated.View 
-            style={[
-              styles.toolbarActionWrapper,
-              { transform: [{ scale: saveButtonScale }], opacity: isSaving ? 0.8 : 1 }
-            ]}
+            style={[styles.toolbarActionWrapper, { transform: [{ scale: saveButtonScale }], opacity: isSaving ? 0.8 : 1 }]}
           >
             <TouchableOpacity 
               style={[styles.buttonContainer, styles.saveButtonContainer]}
@@ -380,30 +420,14 @@ export default function CreateNoteScreen() {
             </TouchableOpacity>
           </Animated.View>
         </View>
-                <TouchableOpacity 
-              style={[styles.buttonContainer, styles.reminderButtonContainer,{marginTop: 10}]}
-            onPress={() => router.push('/ShowNotesScreen')}
-              disabled={isSettingReminder}
-              activeOpacity={0.8}
-            >
-              <View style={styles.buttonInner}>
-                <Notebook size={24} color="#ffffff" />
-                <Text style={styles.buttonText}>
-             جميع الملاحظات
-                </Text>
-              </View>
-            </TouchableOpacity>
       </View>
 
-      {/* Reminder Modal */}
       <ReminderModal
         visible={isReminderModalVisible}
         onClose={() => setIsReminderModalVisible(false)}
         onSetReminder={handleSetReminder}
         currentReminder={reminder}
       />
-
-      {/* Text Formatting Modal */}
       <TextFormattingModal
         visible={isFormattingModalVisible}
         onClose={() => setIsFormattingModalVisible(false)}
@@ -526,10 +550,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
