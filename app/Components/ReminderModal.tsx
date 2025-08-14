@@ -171,6 +171,7 @@ export function ReminderModal({
         onCancel={() => setDatePickerVisible(false)}
         date={selectedDate}
         minimumDate={new Date()}
+        locale="ar"
       />
 
       {/* Time Picker */}
@@ -180,6 +181,7 @@ export function ReminderModal({
         onConfirm={handleTimeConfirm}
         onCancel={() => setTimePickerVisible(false)}
         date={selectedDate}
+        locale="ar"
       />
     </>
   );

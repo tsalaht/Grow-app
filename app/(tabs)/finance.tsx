@@ -111,7 +111,7 @@ export default function FinanceScreen() {
   });
 
   const currentDate = new Date();
-  const currentMonth = currentDate.toLocaleDateString('en-US', { month: 'long' });
+  const currentMonth = currentDate.toLocaleDateString('ar-SA', { month: 'long' });
   const currentYear = currentDate.getFullYear();
 
   const getCurrentMonthData = () => {
@@ -198,7 +198,7 @@ export default function FinanceScreen() {
     
     const expenseName = selectedExpenseCategory === 'others' 
       ? customExpenseCategory.trim() 
-      : `${categoryName} - ${new Date().toLocaleDateString('en-EN')}`;
+      : `${categoryName} - ${new Date().toLocaleDateString('ar-SA')}`;
 
     const expense: Expense = {
       id: Date.now().toString(),

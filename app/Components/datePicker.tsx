@@ -41,7 +41,7 @@ export default function DatePickerModal({
   initialDate,
   minimumDate,
   maximumDate,
-  locale = 'ar-SA',
+  locale = 'ar',
   title,
   onConfirm,
   onClose,
@@ -79,7 +79,7 @@ export default function DatePickerModal({
               onChange={(_, selected) => {
                 if (selected) setCurrentDate(selected);
               }}
-              locale={locale as any}
+              locale="ar"
             />
           </View>
 

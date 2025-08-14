@@ -22,42 +22,20 @@ export default function TabLayout() {
         tabBarInactiveTintColor: '#9CA3AF',
         tabBarLabelStyle: styles.tabBarLabel,
       }}>
+
+
+
+
       <Tabs.Screen
-        name="index"
+        name="smart-notes"
         options={{
-          title: 'الرئيسية',
+          title: 'الملاحظات الذكية',
           tabBarIcon: ({ size, color, focused }) => (
-            <Home size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <Brain size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="daily-goals"
-        options={{
-          title: 'المهام',
-          tabBarIcon: ({ size, color, focused }) => (
-            <Target size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
-          ),
-        }}
-      />
-      {/* <Tabs.Screen
-        name="daily-habits"
-        options={{
-          title: 'العادات اليومية',
-          tabBarIcon: ({ size, color, focused }) => (
-            <TrendingUp size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
-          ),
-        }}
-      /> */}
-      <Tabs.Screen
-        name="finance"
-        options={{
-          title: 'المالية',
-          tabBarIcon: ({ size, color, focused }) => (
-            <CreditCard size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
-          ),
-        }}
-      />
+      
       <Tabs.Screen
         name="big-goals"
         options={{
@@ -67,12 +45,30 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="smart-notes"
+            <Tabs.Screen
+        name="finance"
         options={{
-          title: 'الملاحظات الذكية',
+          title: 'المالية',
           tabBarIcon: ({ size, color, focused }) => (
-            <Brain size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <CreditCard size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
+        }}
+      />
+            <Tabs.Screen
+        name="daily-goals"
+        options={{
+          title: 'المهام',
+          tabBarIcon: ({ size, color, focused }) => (
+            <Target size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
+        }}
+      />
+            <Tabs.Screen
+        name="index"
+        options={{
+          title: 'الرئيسية',
+          tabBarIcon: ({ size, color, focused }) => (
+            <Home size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -88,6 +84,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     paddingTop: 8,
     height: 70,
+    flexDirection: 'row-reverse',
   },
   tabBarLabel: {
     fontFamily: 'Tajawal_400Regular',
