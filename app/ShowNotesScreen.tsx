@@ -11,33 +11,28 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Bookmark, Edit2 } from 'lucide-react-native';
-import { NotesService } from '../services/NotesService';
+import { useNotes } from '@/hooks/useApiData';
 import { Note } from '@/types/Note';
 
 export default function ShowNotesScreen() {
   const router = useRouter();
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, loading, error, refetch } = useNotes();
+  const [notes, setNotes] = useState<any[]>([]);
 
   useEffect(() => {
-    const loadNotes = async () => {
-      try {
-        const fetchedNotes = await NotesService.getAllNotes();
-        // Sort notes: pinned first, then by updatedAt descending
-        const sortedNotes = fetchedNotes.sort((a, b) => {
-          if (a.isPinned && !b.isPinned) return -1;
-          if (!a.isPinned && b.isPinned) return 1;
-          return b.updatedAt.getTime() - a.updatedAt.getTime();
-        });
-        setNotes(sortedNotes);
-      } catch (error) {
-        Alert.alert('خطأ', 'فشل في تحميل الملاحظات');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadNotes();
-  }, []);
+    if (data) {
+      const mapped = data.map((n: any) => ({
+        ...n,
+        updatedAt: n.updatedAt || n.createdAt || new Date().toISOString(),
+      }));
+      const sorted = mapped.sort((a: any, b: any) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      });
+      setNotes(sorted);
+    }
+  }, [data]);
 
   const handleEditNote = (noteId: string) => {
     router.push({ pathname: '/EditNoteScreen', params: { noteId } });
@@ -75,6 +70,11 @@ export default function ShowNotesScreen() {
             month: 'long',
             day: 'numeric',
           })}
+          {' '}
+          {new Date(item.updatedAt).toLocaleTimeString('ar-SA', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
         </Text>
         <TouchableOpacity onPress={() => handleEditNote(item.id)}>
           <Edit2 size={20} color="#374151" />
@@ -95,7 +95,7 @@ export default function ShowNotesScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      {isLoading ? (
+      {loading ? (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>جاري التحميل...</Text>
         </View>

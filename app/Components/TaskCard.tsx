@@ -56,7 +56,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
       case 'important':
         return { backgroundColor: '#fef9c3', color: '#a16207', borderColor: '#fef08a' };
       case 'normal':
-        return { backgroundColor: '#d1fae5', color: '#15803d', borderColor: '#a7f3d0' };
+        return { backgroundColor: '#d1fae5', color: '#15803d', borderColor: '#15803d' };
       case 'low':
         return { backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' };
       default:
@@ -223,7 +223,9 @@ const TaskCard: React.FC<TaskCardProps> = ({
                   </View>
                   <View style={styles.dateRow}>
                     <Icon name="calendar" size={12} color="#15803d" />
-                    <Text style={styles.dateText}>{task.date}</Text>
+                    <Text style={styles.dateText}>
+                      {task.date}{task.time ? ` ${task.time}` : ''}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -253,25 +255,35 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 <Text style={styles.progressLabel}>التقدم</Text>
                 <Text style={styles.progressValue}>{task.progress}%</Text>
               </View>
-              <View style={styles.progressBar}>
-                <View
-                  style={[styles.progressFill, { width: `${task.progress}%` }]}
+              <View style={styles.progressBarRow}>
+                <View style={styles.progressBar}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      { width: `${task.progress}%`, right: 0, left: undefined }
+                    ]}
+                  />
+                </View>
+              </View>
+              <View style={styles.sliderRow}>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={100}
+                  step={10}
+                  value={task.progress}
+                  onValueChange={(value) => {
+                    const newProgress = Math.round(value);
+                    const newStatus = newProgress === 100 ? 'completed' : 'in-progress';
+                    onUpdateTask(task.id, { progress: newProgress, status: newStatus });
+                  }}
+                  minimumTrackTintColor="#12A150"
+                  maximumTrackTintColor="#d1fae5"
+                  thumbTintColor="#12A150"
+                  // Reverse the slider visually
+                  inverted
                 />
               </View>
-              <Slider
-                style={styles.slider}
-                minimumValue={0}
-                maximumValue={100}
-                step={10}
-                value={task.progress}
-                onValueChange={(value) => {
-                  const newProgress = Math.round(value);
-                  const newStatus = newProgress === 100 ? 'completed' : 'in-progress';
-                  onUpdateTask(task.id, { progress: newProgress, status: newStatus });
-                }}
-                minimumTrackTintColor="#22c55e"
-                maximumTrackTintColor="#d1fae5"
-              />
             </View>
           )}
           {task.status === 'completed' && (
@@ -291,7 +303,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 activeOpacity={0.7}
               >
                 <Icon name="edit-2" size={20} color="#3b82f6" />
-                <Text style={styles.actionButtonText}>تعديل</Text>
+          
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -303,7 +315,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 activeOpacity={0.7}
               >
                 <Icon name="trash-2" size={20} color="#ef4444" />
-                <Text style={styles.actionButtonText}>حذف</Text>
+              
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -315,7 +327,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
                 activeOpacity={0.7}
               >
                 <Icon name="copy" size={20} color="#8b5cf6" />
-                <Text style={styles.actionButtonText}>نسخ</Text>
+               
               </TouchableOpacity>
             </View>
             <View style={styles.durationRow}>
@@ -336,7 +348,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -370,8 +382,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkCircleCompleted: {
-    backgroundColor: '#22c55e',
-    borderColor: '#22c55e',
+    backgroundColor: '#12A150',
+    borderColor: '#12A150',
   },
   taskIcon: {
     fontSize: 20,
@@ -388,7 +400,7 @@ const styles = StyleSheet.create({
   },
   completedTask: {
     textDecorationLine: 'line-through',
-    color: '#22c55e',
+    color: '#12A150',
   },
   taskMeta: {
     flexDirection: 'row-reverse',
@@ -413,7 +425,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 12,
-    color: '#22c55e',
+    color: '#12A150',
     fontFamily: 'Tajawal_400Regular',
   },
   notesContainer: {
@@ -434,7 +446,7 @@ const styles = StyleSheet.create({
   },
   notesToggle: {
     fontSize: 12,
-    color: '#22c55e',
+    color: '#12A150',
     textAlign: 'right',
     marginTop: 4,
     fontFamily: 'Tajawal_400Regular',
@@ -443,33 +455,45 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   progressHeader: {
-    flexDirection: 'row-reverse',
+       flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     marginBottom: 4,
   },
   progressLabel: {
     fontSize: 12,
-    color: '#22c55e',
+    color: '#12A150',
     fontFamily: 'Tajawal_400Regular',
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
   },
   progressValue: {
     fontSize: 12,
     color: '#15803d',
     fontFamily: 'Tajawal_400Regular',
   },
+  progressBarRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   progressBar: {
     height: 4,
     backgroundColor: '#d1fae5',
     borderRadius: 2,
     overflow: 'hidden',
+    flex: 1,
+    flexDirection: 'row-reverse',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#22c55e',
+    backgroundColor: '#12A150',
+  },
+  sliderRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
   },
   slider: {
     marginTop: 4,
+    flex: 1,
   },
   completedBadge: {
     flexDirection: 'row-reverse',
@@ -493,7 +517,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#a7f3d0',
+    borderTopColor: '#15803d',
   },
   actionButtons: {
     flexDirection: 'row-reverse',
@@ -505,8 +529,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    minWidth: 60,
-    minHeight: 50,
+    minWidth: 40,
+    minHeight: 40,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 4,
@@ -524,7 +548,7 @@ const styles = StyleSheet.create({
   },
   durationText: {
     fontSize: 12,
-    color: '#22c55e',
+    color: '#12A150',
     fontFamily: 'Tajawal_400Regular',
   },
   editContainer: {
@@ -545,7 +569,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   saveButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#12A150',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -571,7 +595,7 @@ const styles = StyleSheet.create({
   titleInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
@@ -582,7 +606,7 @@ const styles = StyleSheet.create({
   iconInput: {
     width: 60,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 12,
     fontSize: 20,
@@ -592,7 +616,7 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
@@ -619,7 +643,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 8,
     fontSize: 14,
@@ -629,7 +653,7 @@ const styles = StyleSheet.create({
   },
   picker: {
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     backgroundColor: '#ffffff',
   },

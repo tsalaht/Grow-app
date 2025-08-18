@@ -15,10 +15,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { ArrowLeft, MoveHorizontal as MoreHorizontal, Save, Undo2, Redo2, Users, Bookmark, Star, Smile, Image, Mic, AlignLeft, Type, Clock,Notebook } from 'lucide-react-native';
-import { NotesService } from '../../services/NotesService';
+import { ArrowLeft, MoveHorizontal as MoreHorizontal, Save, Undo2, Redo2, Users, Bookmark, Star, Smile, Image, Mic, AlignLeft, Type, Clock,Notebook, Trash2 } from 'lucide-react-native';
+import { NoteCategory } from '@/services/api';
+import { useCreateNote } from '@/hooks/useApiData';
 import { ReminderModal } from '../Components/ReminderModal';
-import { TextFormattingModal } from '../Components/TextFormattingModal';
+import { TextFormattingModal}  from '../Components/TextFormattingModal';
 import { Note } from '@/types/Note';
 
 
@@ -104,6 +105,20 @@ export default function CreateNoteScreen() {
     saveToHistory(title, newContent);
   };
 
+  const { mutate: createNote } = useCreateNote();
+  const clearAll = () => {
+    setTitle('');
+    setContent('');
+    setIsPinned(false);
+    setReminder(null);
+    setSelectedImage(null);
+    setTextFormats([]);
+    setFontSize(16);
+    setTextAlignment('right');
+    setHistory([]);
+    setHistoryIndex(-1);
+  };
+
   const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('خطأ', 'يرجى إدخال عنوان للملاحظة');
@@ -130,29 +145,33 @@ export default function CreateNoteScreen() {
     ]).start();
 
     try {
-      const newNote: Omit<Note, 'id'> = {
+      const payload = {
         title: title.trim(),
         content: content.trim(),
+        category: NoteCategory.OTHER,
         isPinned,
-        reminder,
+        reminder: reminder ? new Date(reminder).toISOString() : undefined,
         tags: [],
         isTask: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        imageUri: selectedImage, // Include image URI in note
-        textFormats, // Save formatting
+        color: undefined,
         fontSize,
-        textAlignment,
-      };
+        textAlignment: textAlignment === 'justify' ? 'right' : textAlignment,
+        textFormats,
+        imageUri: selectedImage || undefined,
+      } as any;
 
-      await NotesService.createNote(newNote);
-      
-      setTimeout(() => {
+      const result = await createNote(payload);
+      if (result?.success) {
+        setTimeout(() => {
+          setIsSaving(false);
+          Alert.alert('تم الحفظ', 'تم حفظ الملاحظة بنجاح', [
+            { text: 'موافق', onPress: () => router.push('/ShowNotesScreen') }
+          ]);
+        }, 300);
+      } else {
         setIsSaving(false);
-        Alert.alert('تم الحفظ', 'تم حفظ الملاحظة بنجاح', [
-          { text: 'موافق', onPress: () => router.push('/ShowNotesScreen') }
-        ]);
-      }, 300);
+        Alert.alert('خطأ', result?.error || 'لم يتم حفظ الملاحظة');
+      }
     } catch (error) {
       setIsSaving(false);
       Alert.alert('خطأ', 'لم يتم حفظ الملاحظة');
@@ -172,6 +191,14 @@ export default function CreateNoteScreen() {
       setFontSize(prev => Math.min(prev + 2, 24));
     } else if (format === 'decrease-font') {
       setFontSize(prev => Math.max(prev - 2, 12));
+    } else if (format === 'bullet-list') {
+      setContent(prev => prev + '\n• ');
+    } else if (format === 'numbered-list') {
+      setContent(prev => {
+        const lines = prev.split('\n');
+        const nextNumber = lines.length;
+        return prev + `\n${nextNumber}. `;
+      });
     } else {
       setTextFormats(prev => 
         prev.includes(format) 
@@ -293,6 +320,12 @@ export default function CreateNoteScreen() {
               style={styles.selectedImage}
               resizeMode="contain"
             />
+            <TouchableOpacity
+              style={styles.removeImageButton}
+              onPress={() => setSelectedImage(null)}
+            >
+              <Text style={styles.removeImageButtonText}>إزالة الصورة</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -319,20 +352,20 @@ export default function CreateNoteScreen() {
             style={styles.toolbarButton}
             onPress={pickImage}
           >
-            <Image size={20} color="#000000" />
+            <Image size={20} color="#FFFFFF" />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.toolbarButton}
             onPress={() => setIsFormattingModalVisible(true)}
           >
-            <AlignLeft size={20} color="#000000" />
+            <AlignLeft size={20} color="#FFFFFF" />
           </TouchableOpacity>
         
           <TouchableOpacity 
             style={styles.toolbarButton}
             onPress={() => setIsFormattingModalVisible(true)}
           >
-            <Type size={20} color="#000000" />
+            <Type size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
@@ -376,6 +409,19 @@ export default function CreateNoteScreen() {
                 <Text style={styles.buttonText}>
                   {isSaving ? 'جاري الحفظ...' : 'حفظ'}
                 </Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+
+          <Animated.View style={styles.toolbarActionWrapper}>
+            <TouchableOpacity 
+              style={[styles.buttonContainer, styles.clearButtonContainer]}
+              onPress={clearAll}
+              activeOpacity={0.8}
+            >
+              <View style={styles.buttonInner}>
+                <Trash2 size={24} color="#ffffff" />
+                <Text style={styles.buttonText}>مسح الكل</Text>
               </View>
             </TouchableOpacity>
           </Animated.View>
@@ -487,6 +533,19 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
   },
+  removeImageButton: {
+    marginTop: 10,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  removeImageButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Tajawal_700Bold',
+  },
   bottomToolbar: {
     flexDirection: 'column',
     alignItems: 'center',
@@ -520,6 +579,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#15803d',
   },
   buttonContainer: {
     borderRadius: 25,
@@ -535,10 +595,13 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   saveButtonContainer: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#15803d',
   },
   reminderButtonContainer: {
-    backgroundColor: '#052814',
+    backgroundColor: '#15803d',
+  },
+  clearButtonContainer: {
+    backgroundColor: '#15803d',
   },
   buttonInner: {
     flexDirection: 'row',

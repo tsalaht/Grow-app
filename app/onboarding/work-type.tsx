@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   optionItem: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'transparent',

@@ -14,6 +14,7 @@ import {
   Modal,
   Alert,
   Pressable,
+  RefreshControl,
 } from 'react-native';
 
 // Ensure Tajawal is applied to Text/TextInput when fonts are loaded
@@ -25,6 +26,17 @@ import { ReminderModal } from '@/app/Components/ReminderModal';
 import TaskCard from '@/app/Components/TaskCard';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold } from '@expo-google-fonts/tajawal';
 import { Task } from '@/types/Task';
+import { Dropdown } from "react-native-element-dropdown";
+import { 
+  useTasks, 
+  useCreateTask, 
+  useUpdateTask, 
+  useDeleteTask, 
+  useToggleTask,
+  useTasksByCategory 
+} from '../../hooks/useApiData';
+import { TaskType, TaskResponse, TaskRequest } from '../../types/api';
+import { API } from '@/services/api';
 
 // Set default font for Text and TextInput across this screen
 // Safe to do at module scope and does not affect hooks
@@ -157,12 +169,69 @@ const TaskManager: React.FC = () => {
     category: 'daily',
   });
 
+  const statusData = [
+  { label: "جميع الحالات", value: "" },
+  { label: "مكتملة ✅", value: "completed" },
+  { label: "قيد التنفيذ ⏳", value: "in-progress" },
+  { label: "متأخرة 🔴", value: "overdue" },
+  { label: "مؤجلة ⏸️", value: "paused" },
+];
+
+const priorityData = [
+  { label: "جميع الأولويات", value: "" },
+  { label: "عاجل 🔥", value: "urgent" },
+  { label: "مهم 🟡", value: "important" },
+  { label: "عادي 🟢", value: "normal" },
+  { label: "منخفض 🔵", value: "low" },
+];
+
   useEffect(() => {
     setFormData((prev) => ({
       ...prev,
       category: activeTab === 'all' ? (prev.category || 'daily') : activeTab,
     }));
   }, [activeTab]);
+
+  // Fetch tasks from API
+  const { data: allTasksData, refetch: refetchAll } = useTasks();
+  const { data: byCategoryData, refetch: refetchByCategory } = useTasksByCategory(
+    (activeTab === 'all' ? 'daily' : activeTab) as 'daily' | 'weekly' | 'monthly'
+  );
+
+  const mapApiTaskToLocal = (t: TaskResponse): Task => {
+    const dateStr = t.dueDate || new Date(t.createdAt).toISOString().split('T')[0];
+    const timeStr = t.dueDate && t.dueDate.includes('T')
+      ? new Date(t.dueDate).toTimeString().slice(0,5)
+      : '';
+    return {
+      id: t.id,
+      title: t.title,
+      icon: t.icon || '',
+      notes: t.notes || t.description || '',
+      status: t.status,
+      priority: t.priority,
+      date: dateStr,
+      time: timeStr,
+      estimatedDuration: t.estimatedDuration || 30,
+      progress: t.progress || 0,
+      category: t.category,
+    };
+  };
+
+  useEffect(() => {
+    const source = activeTab === 'all' ? allTasksData : byCategoryData;
+    if (source) {
+      setTasks(source.map(mapApiTaskToLocal));
+    }
+  }, [allTasksData, byCategoryData, activeTab]);
+
+  const refetchTasks = () => {
+    if (activeTab === 'all') {
+      refetchAll();
+    } else {
+      refetchByCategory();
+    }
+  };
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -243,24 +312,30 @@ const TaskManager: React.FC = () => {
     setSelectedCategory('');
   };
 
-  const handleSubmit = () => {
-    if (formData.title.trim()) {
-      const selectedCategory = (formData.category as 'daily' | 'weekly' | 'monthly') || (activeTab === 'all' ? 'daily' : activeTab);
-      const newTask: Task = {
-        id: generateId(),
-        title: formData.title,
-        icon: formData.icon,
-        notes: formData.notes,
-        status: 'in-progress',
-        priority: formData.priority,
-        date: formData.date || new Date().toISOString().split('T')[0],
-        time: formData.time || '09:00',
-        estimatedDuration: formData.estimatedDuration,
-        progress: 0,
-        category: selectedCategory,
-      };
-      setTasks((prev) => [...prev, newTask]);
-      // Reset filters so the new task is visible immediately
+  const { mutate: createTask } = useCreateTask();
+  const { mutate: updateTaskApi } = useUpdateTask();
+  const { mutate: deleteTaskApi } = useDeleteTask();
+  const { mutate: toggleTaskApi } = useToggleTask();
+
+  const handleSubmit = async () => {
+    if (!formData.title.trim()) return;
+    const selectedCategory = (formData.category as 'daily' | 'weekly' | 'monthly') || (activeTab === 'all' ? 'daily' : activeTab);
+    const dueDate = formData.date
+      ? (formData.time ? new Date(`${formData.date}T${formData.time}:00`) : new Date(`${formData.date}T00:00:00`)).toISOString()
+      : undefined;
+    const payload: TaskRequest = {
+      title: formData.title,
+      description: formData.notes || undefined,
+      type: (selectedCategory.toUpperCase() as TaskType),
+      priority: formData.priority,
+      dueDate,
+      estimatedDuration: formData.estimatedDuration,
+      category: selectedCategory,
+      notes: formData.notes || undefined,
+      icon: formData.icon || undefined,
+    };
+    const result = await createTask(payload);
+    if (result?.success) {
       setFilterStatus('');
       setFilterPriority('');
       setFormData({
@@ -274,11 +349,29 @@ const TaskManager: React.FC = () => {
         category: activeTab === 'all' ? selectedCategory : activeTab,
       });
       setShowAddForm(false);
+      refetchTasks();
     }
   };
 
-  const updateTask = (id: string, updates: Partial<Task>) => {
+  const updateTask = async (id: string, updates: Partial<Task>) => {
     setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, ...updates } : task)));
+    const partial: any = {};
+    if (updates.title !== undefined) partial.title = updates.title;
+    if (updates.notes !== undefined) partial.notes = updates.notes;
+    if (updates.priority !== undefined) partial.priority = updates.priority;
+    if (updates.estimatedDuration !== undefined) partial.estimatedDuration = updates.estimatedDuration;
+    if (updates.progress !== undefined) {
+      partial.progress = updates.progress;
+      if (updates.progress === 100) partial.status = 'completed';
+      if (updates.progress === 0) partial.status = 'in-progress';
+    }
+    if (updates.date || updates.time) {
+      const base = updates.date || tasks.find(t => t.id === id)?.date;
+      const time = updates.time || tasks.find(t => t.id === id)?.time || '00:00';
+      if (base) partial.dueDate = new Date(`${base}T${time}:00`).toISOString();
+    }
+    await updateTaskApi({ id, data: partial });
+    refetchTasks();
   };
 
   const deleteTask = (id: string) => {
@@ -286,15 +379,13 @@ const TaskManager: React.FC = () => {
       'تأكيد الحذف',
       'هل أنت متأكد من حذف هذه المهمة؟',
       [
-        {
-          text: 'إلغاء',
-          style: 'cancel',
-        },
+        { text: 'إلغاء', style: 'cancel' },
         {
           text: 'حذف',
           style: 'destructive',
-          onPress: () => {
-            setTasks((prev) => prev.filter((task) => task.id !== id));
+          onPress: async () => {
+            await deleteTaskApi(id);
+            refetchTasks();
           },
         },
       ]
@@ -330,9 +421,9 @@ const TaskManager: React.FC = () => {
     });
   };
 
-  const saveEditTask = () => {
-    if (editingTask && editFormData.title?.trim()) {
-      updateTask(editingTask, editFormData);
+  const saveEditTask = async () => {
+    if (editingTask && (editFormData.title?.trim() || Object.keys(editFormData).length > 0)) {
+      await updateTask(editingTask, editFormData);
       setEditingTask(null);
       setEditFormData({});
     }
@@ -343,10 +434,9 @@ const TaskManager: React.FC = () => {
     setEditFormData({});
   };
 
-  const toggleTaskCompletion = (task: Task) => {
-    const newStatus = task.status === 'completed' ? 'in-progress' : 'completed';
-    const newProgress = newStatus === 'completed' ? 100 : 0;
-    updateTask(task.id, { status: newStatus, progress: newProgress });
+  const toggleTaskCompletion = async (task: Task) => {
+    await toggleTaskApi(task.id);
+    refetchTasks();
   };
 
   const toggleNoteExpansion = (taskId: string) => {
@@ -355,50 +445,9 @@ const TaskManager: React.FC = () => {
     );
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <Icon name="check-circle" size={20} color="#22c55e" />;
-      case 'in-progress':
-        return <Icon name="clock" size={20} color="#3b82f6" />;
-      case 'overdue':
-        return <Icon name="alert-circle" size={20} color="#ef4444" />;
-      case 'paused':
-        return <Icon name="pause" size={20} color="#eab308" />;
-      default:
-        return <Icon name="clock" size={20} color="#9ca3af" />;
-    }
-  };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return { backgroundColor: '#fee2e2', color: '#b91c1c', borderColor: '#fecaca' };
-      case 'important':
-        return { backgroundColor: '#fef9c3', color: '#a16207', borderColor: '#fef08a' };
-      case 'normal':
-        return { backgroundColor: '#d1fae5', color: '#15803d', borderColor: '#a7f3d0' };
-      case 'low':
-        return { backgroundColor: '#dbeafe', color: '#1e40af', borderColor: '#bfdbfe' };
-      default:
-        return { backgroundColor: '#f3f4f6', color: '#374151', borderColor: '#d1d5db' };
-    }
-  };
 
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'urgent':
-        return 'عاجل 🔥';
-      case 'important':
-        return 'مهم 🟡';
-      case 'normal':
-        return 'عادي 🟢';
-      case 'low':
-        return 'منخفض 🔵';
-      default:
-        return 'عادي';
-    }
-  };
+
 
   const getTabLabel = (tab: string) => {
     switch (tab) {
@@ -457,14 +506,9 @@ const TaskManager: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#f0fdf4" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>📋 مدير المهام العربي المتطور</Text>
+        <Text style={styles.headerTitle}>📋 المهام </Text>
         <View style={styles.headerButtons}>
-          <TouchableOpacity
-            onPress={() => setViewMode(viewMode === 'cards' ? 'table' : 'cards')}
-            style={styles.headerButton}
-          >
-            <Icon name="menu" size={24} color="#4b5563" />
-          </TouchableOpacity>
+     
           <TouchableOpacity
             onPress={() => setShowAddForm(!showAddForm)}
             style={styles.addButton}
@@ -490,36 +534,37 @@ const TaskManager: React.FC = () => {
           </TouchableOpacity>
         ))}
       </View>
-      <View style={styles.filtersContainer}>
-        <View style={styles.filterPicker}>
-          <Picker
-            selectedValue={filterStatus}
-            onValueChange={(value) => setFilterStatus(value)}
-            style={styles.pickerText}
-            itemStyle={styles.pickerText}
-          >
-            <Picker.Item label="جميع الحالات" value="" />
-            <Picker.Item label="مكتملة ✅" value="completed" />
-            <Picker.Item label="قيد التنفيذ ⏳" value="in-progress" />
-            <Picker.Item label="متأخرة 🔴" value="overdue" />
-            <Picker.Item label="مؤجلة ⏸️" value="paused" />
-          </Picker>
-        </View>
-        <View style={styles.filterPicker}>
-          <Picker
-            selectedValue={filterPriority}
-            onValueChange={(value) => setFilterPriority(value)}
-            style={styles.pickerText}
-            itemStyle={styles.pickerText}
-          >
-            <Picker.Item label="جميع الأولويات" value="" />
-            <Picker.Item label="عاجل 🔥" value="urgent" />
-            <Picker.Item label="مهم 🟡" value="important" />
-            <Picker.Item label="عادي 🟢" value="normal" />
-            <Picker.Item label="منخفض 🔵" value="low" />
-          </Picker>
-        </View>
+     <View style={styles.filtersContainer}>
+      {/* Status Dropdown */}
+      <View style={styles.filterPicker}>
+        <Dropdown
+          style={styles.dropdown}
+          data={statusData}
+          labelField="label"
+          valueField="value"
+          placeholder="جميع الحالات"
+          value={filterStatus}
+          onChange={(item) => setFilterStatus(item.value)}
+          selectedTextStyle={styles.pickerText}
+          placeholderStyle={styles.pickerText}
+        />
       </View>
+
+      {/* Priority Dropdown */}
+      <View style={styles.filterPicker}>
+        <Dropdown
+          style={styles.dropdown}
+          data={priorityData}
+          labelField="label"
+          valueField="value"
+          placeholder="جميع الأولويات"
+          value={filterPriority}
+          onChange={(item) => setFilterPriority(item.value)}
+          selectedTextStyle={styles.pickerText}
+          placeholderStyle={styles.pickerText}
+        />
+      </View>
+    </View>
       <ScrollView style={styles.mainContent}>
         {showAddForm && (
           <View style={styles.addFormContainer}>
@@ -529,7 +574,7 @@ const TaskManager: React.FC = () => {
                 onPress={() => setShowAddForm(false)}
                 style={styles.closeButton}
               >
-                <Icon name="x" size={24} color="#22c55e" />
+                <Icon name="x" size={24} color="#12A150" />
               </TouchableOpacity>
             </View>
             <View style={styles.formContent}>
@@ -543,7 +588,7 @@ const TaskManager: React.FC = () => {
                   <Icon
                     name={showDropdown ? 'chevron-up' : 'chevron-down'}
                     size={20}
-                    color="#22c55e"
+                    color="#12A150"
                   />
                 </TouchableOpacity>
                 {showDropdown && (
@@ -561,12 +606,12 @@ const TaskManager: React.FC = () => {
                             onPress={() => setShowDropdown(false)}
                             style={styles.closeModalButton}
                           >
-                            <Icon name="x" size={24} color="#22c55e" />
+                            <Icon name="x" size={24} color="#12A150" />
                           </TouchableOpacity>
                         </View>
                         <View style={styles.searchSection}>
                           <View style={styles.searchContainer}>
-                            <Icon name="search" size={16} color="#22c55e" style={styles.searchIcon} />
+                            <Icon name="search" size={16} color="#12A150" style={styles.searchIcon} />
                             <TextInput
                               style={styles.searchInput}
                               placeholder="بحث في العناوين..."
@@ -822,7 +867,7 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f0fdf4',
     borderBottomWidth: 1,
-    borderBottomColor: '#a7f3d0',
+    borderBottomColor: '#15803d',
   },
   headerTitle: {
     fontSize: 20,
@@ -842,14 +887,14 @@ const styles = StyleSheet.create({
   addButton: {
     padding: 8,
     borderRadius: 12,
-    backgroundColor: '#22c55e',
+    backgroundColor: '#12A150',
   },
   tabsContainer: {
  flexDirection: 'row-reverse',
     backgroundColor: '#ecfdf5',
     padding: 8,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 12,
     marginHorizontal: 16,
     marginVertical: 8,
@@ -866,7 +911,7 @@ const styles = StyleSheet.create({
   activeTab: {
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -896,7 +941,7 @@ const styles = StyleSheet.create({
   filterPicker: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     backgroundColor: '#ffffff',
   },
@@ -923,7 +968,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -956,7 +1001,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ecfdf5',
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 12,
   },
@@ -969,7 +1014,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     maxHeight: 300,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -989,7 +1034,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
   },
   modalTitle: {
     fontSize: 16,
@@ -1033,7 +1078,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1046,7 +1091,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#a7f3d0',
+    borderBottomColor: '#15803d',
     backgroundColor: '#ecfdf5',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
@@ -1057,20 +1102,20 @@ const styles = StyleSheet.create({
   searchSection: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#a7f3d0',
+    borderBottomColor: '#15803d',
     backgroundColor: '#f8fafc',
   },
   dropdownSearch: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#a7f3d0',
+    borderBottomColor: '#15803d',
     backgroundColor: '#ecfdf5',
   },
   searchContainer: {
  flexDirection: 'row-reverse',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     marginBottom: 8,
   },
@@ -1087,7 +1132,7 @@ const styles = StyleSheet.create({
   },
   categoryPicker: {
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     backgroundColor: '#ffffff',
   },
@@ -1100,7 +1145,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#a7f3d0',
+    borderBottomColor: '#15803d',
   },
   predefinedIcon: {
     fontSize: 20,
@@ -1145,7 +1190,7 @@ const styles = StyleSheet.create({
   titleInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
@@ -1156,7 +1201,7 @@ const styles = StyleSheet.create({
   iconInput: {
     width: 60,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 12,
     fontSize: 20,
@@ -1166,7 +1211,7 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
@@ -1174,6 +1219,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     textAlignVertical: 'top',
     fontFamily: 'Tajawal_400Regular',
+    height:200
   },
   formGrid: {
  flexDirection: 'row-reverse',
@@ -1187,7 +1233,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     padding: 8,
     fontSize: 14,
@@ -1197,12 +1243,12 @@ const styles = StyleSheet.create({
   },
   picker: {
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
     borderRadius: 8,
     backgroundColor: '#ffffff',
   },
   submitButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#12A150',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -1227,16 +1273,16 @@ const styles = StyleSheet.create({
     padding: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#15803d',
   },
   statValue: {
     fontSize: 20,
     fontFamily: 'Tajawal_700Bold',
-    color: '#22c55e',
+    color: '#12A150',
   },
   statLabel: {
     fontSize: 12,
-    color: '#22c55e',
+    color: '#12A150',
     fontFamily: 'Tajawal_400Regular',
   },
   taskList: {
@@ -1260,12 +1306,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#22c55e',
+    color: '#12A150',
     marginBottom: 16,
     fontFamily: 'Tajawal_400Regular',
   },
   addFirstTaskButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#12A150',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
@@ -1278,13 +1324,13 @@ const styles = StyleSheet.create({
   bottomNav: {
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#a7f3d0',
+    borderTopColor: '#15803d',
     padding: 12,
     alignItems: 'center',
   },
   bottomNavText: {
     fontSize: 12,
-    color: '#22c55e',
+    color: '#12A150',
     textAlign: 'center',
     fontFamily: 'Tajawal_400Regular',
   },
@@ -1306,7 +1352,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   saveButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: '#12A150',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -1340,9 +1386,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkCircleCompleted: {
-    backgroundColor: '#22c55e',
-    borderColor: '#22c55e',
+    backgroundColor: '#12A150',
+    borderColor: '#12A150',
   },
+    dropdown: {
+    // borderWidth: 1,
+    // borderColor: "#15803d",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    backgroundColor: "#fff",
+    height: 44,
+alignItems:"center",
+justifyContent:"center"
+  },
+
 });
 
 export default TaskManager;

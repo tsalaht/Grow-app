@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { User, Settings, Bell, Shield, CircleHelp as HelpCircle, LogOut, ChevronRight, Moon, Globe, Download, Share2,ChevronLeft } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import { useMyAppContext } from '@/context/MyAppContext';
+import { Image as RNImage } from 'react-native';
 
 
 interface ProfileOption {
@@ -28,10 +29,10 @@ interface ProfileOption {
 }
 
 export default function ProfileScreen() {
-  const { username, setUsername, resetAppState } = useMyAppContext();
+  const { username, resetAppState, userData, isAuthenticated, logout } = useMyAppContext();
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
-  const [userEmail] = useState('ibrahim@example.com');
+  const userEmail = userData?.email || '—';
 
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
@@ -51,9 +52,12 @@ export default function ProfileScreen() {
         {
           text: 'تسجيل الخروج',
           style: 'destructive',
-          onPress: () => {
-            // هنا يتم تسجيل الخروج والعودة لشاشة تسجيل الدخول
-            router.replace('/login');
+          onPress: async () => {
+            try {
+              await logout();
+            } finally {
+              router.replace('/login');
+            }
           },
         },
       ]
@@ -82,13 +86,13 @@ export default function ProfileScreen() {
   };
 
   const profileOptions: ProfileOption[] = [
-    {
-      id: 'account',
-      title: 'إعدادات الحساب',
-      subtitle: 'تحديث المعلومات الشخصية',
-      icon: <User size={20} color="#095028" />,
-      action: () => Alert.alert('إعدادات الحساب', 'قريباً - إعدادات الحساب'),
-    },
+    // {
+    //   id: 'account',
+    //   title: 'إعدادات الحساب',
+    //   subtitle: 'تحديث المعلومات الشخصية',
+    //   icon: <User size={20} color="#095028" />,
+    //   action: () => Alert.alert('إعدادات الحساب', 'قريباً - إعدادات الحساب'),
+    // },
     {
       id: 'notifications',
       title: 'الإشعارات',
@@ -148,12 +152,16 @@ export default function ProfileScreen() {
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
-              <Text style={styles.avatarText}>👤</Text>
+              {userData?.avatar ? (
+                <RNImage source={{ uri: userData.avatar }} style={{ width: 60, height: 60, borderRadius: 30 }} />
+              ) : (
+                <Text style={styles.avatarText}>{(userData?.name?.[0] || '👤')}</Text>
+              )}
             </View>
-            <View style={styles.onlineIndicator} />
+            {isAuthenticated && <View style={styles.onlineIndicator} />}
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.userName}>{username}</Text>
+            <Text style={styles.userName}>{userData?.name || username}</Text>
             <Text style={styles.userEmail}>{userEmail}</Text>
             <View style={styles.membershipBadge}>
               <Text style={styles.membershipText}>عضو منذ يناير 2025</Text>

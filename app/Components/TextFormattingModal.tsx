@@ -110,7 +110,22 @@ export function TextFormattingModal({
 
             {/* Alignment Section */}
       
-
+ <View style={styles.section}>
+              <Text style={styles.sectionTitle}>محاذاة النص والقوائم</Text>
+              <View style={styles.formatRow}>
+            
+                <FormatButton
+                  icon={<List size={20} color="#374151" />}
+                  label="قائمة نقطية"
+                  onPress={() => onFormatChange('bullet-list')}
+                />
+                <FormatButton
+                  icon={<ListOrdered size={20} color="#374151" />}
+                  label="قائمة مرقمة"
+                  onPress={() => onFormatChange('numbered-list')}
+                />
+              </View>
+            </View>
             {/* Font Size Section */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>حجم الخط</Text>
@@ -133,6 +148,7 @@ export function TextFormattingModal({
                 </TouchableOpacity>
               </View>
             </View>
+            
           </View>
         </View>
       </View>
@@ -153,7 +169,7 @@ const styles = StyleSheet.create({
     maxHeight: '70%',
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
@@ -176,16 +192,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Cairo-Bold',
     color: '#111827',
-    textAlign: 'left',
+    textAlign: 'right',
     marginBottom: 12,
   },
   formatRow: {
-    flexDirection: 'row',
+     flexDirection: 'row-reverse',
     gap: 12,
     flexWrap: 'wrap',
   },
   formatButton: {
-    flexDirection: 'row',
+     flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
     paddingHorizontal: 16,
@@ -195,7 +211,7 @@ const styles = StyleSheet.create({
     minWidth: 90,
   },
   formatButtonActive: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#12A150',
   },
   formatButtonText: {
     fontSize: 14,
@@ -206,7 +222,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   fontSizeRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 20,
@@ -220,7 +236,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fontSizeDisplay: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     backgroundColor: '#f8fafc',
     paddingHorizontal: 20,

@@ -16,7 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ArrowLeft, MoveHorizontal as MoreHorizontal, Save, Undo2, Redo2, Users, Bookmark, Star, Smile, Image, AlignLeft, Type, Clock, Trash2 } from 'lucide-react-native';
-import { NotesService } from '../services/NotesService';
+import { useUpdateNote, useDeleteNote } from '@/hooks/useApiData';
+import { API } from '@/services/api';
 import { ReminderModal } from './Components/ReminderModal';
 import { TextFormattingModal } from './Components/TextFormattingModal';
 import { Note } from '@/types/Note';
@@ -56,20 +57,26 @@ export default function EditNoteScreen() {
         return;
       }
       try {
-        const note = await NotesService.getNoteById(noteId);
-        if (note) {
-          setTitle(note.title);
-          setContent(note.content);
-          setIsPinned(note.isPinned);
-          setReminder(note.reminder ?? null);
-          setFontSize(note.fontSize || 16);
-          setTextAlignment(note.textAlignment || 'right');
-          setTextFormats(note.textFormats || []);
-          setSelectedImage(note.imageUri || null);
-          setHistory([{ title: note.title, content: note.content }]);
-          setHistoryIndex(0);
+        const result = await API.notes.getAllNotes();
+        if (result.success && result.data) {
+          const note = result.data.find((n: any) => n.id === noteId);
+          if (note) {
+            setTitle(note.title);
+            setContent(note.content);
+            setIsPinned(note.isPinned);
+            setReminder(note.reminder ? new Date(note.reminder) : null);
+            setFontSize(note.fontSize || 16);
+            setTextAlignment((note.textAlignment as any) || 'right');
+            setTextFormats(note.textFormats || []);
+            setSelectedImage(note.imageUri || null);
+            setHistory([{ title: note.title, content: note.content }]);
+            setHistoryIndex(0);
+          } else {
+            Alert.alert('خطأ', 'الملاحظة غير موجودة');
+            router.back();
+          }
         } else {
-          Alert.alert('خطأ', 'الملاحظة غير موجودة');
+          Alert.alert('خطأ', result.error || 'فشل في تحميل الملاحظة');
           router.back();
         }
       } catch (error) {
@@ -138,6 +145,9 @@ export default function EditNoteScreen() {
     saveToHistory(title, newContent);
   };
 
+  const { mutate: updateNote } = useUpdateNote();
+  const { mutate: deleteNoteApi } = useDeleteNote();
+
   const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('خطأ', 'يرجى إدخال عنوان للملاحظة');
@@ -164,30 +174,30 @@ export default function EditNoteScreen() {
     ]).start();
 
     try {
-      const updatedNote: Note = {
-        id: noteId as string,
+      const payload: any = {
         title: title.trim(),
         content: content.trim(),
         isPinned,
-        reminder,
+        reminder: reminder ? new Date(reminder).toISOString() : undefined,
         tags: [],
         isTask: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        imageUri: selectedImage,
+        imageUri: selectedImage || undefined,
         textFormats,
         fontSize,
         textAlignment,
       };
-
-      await NotesService.updateNote(updatedNote);
-      
-      setTimeout(() => {
+      const result = await updateNote({ id: noteId as string, data: payload });
+      if (result?.success) {
+        setTimeout(() => {
+          setIsSaving(false);
+          Alert.alert('تم الحفظ', 'تم تحديث الملاحظة بنجاح', [
+            { text: 'موافق', onPress: () => router.back() }
+          ]);
+        }, 300);
+      } else {
         setIsSaving(false);
-        Alert.alert('تم الحفظ', 'تم تحديث الملاحظة بنجاح', [
-          { text: 'موافق', onPress: () => router.back() }
-        ]);
-      }, 300);
+        Alert.alert('خطأ', result?.error || 'لم يتم تحديث الملاحظة');
+      }
     } catch (error) {
       setIsSaving(false);
       Alert.alert('خطأ', 'لم يتم تحديث الملاحظة');
@@ -205,10 +215,14 @@ export default function EditNoteScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await NotesService.deleteNote(noteId as string);
-              Alert.alert('تم الحذف', 'تم حذف الملاحظة بنجاح', [
-                { text: 'موافق', onPress: () => router.back() }
-              ]);
+              const result = await deleteNoteApi(noteId as string);
+              if (result?.success) {
+                Alert.alert('تم الحذف', 'تم حذف الملاحظة بنجاح', [
+                  { text: 'موافق', onPress: () => router.back() }
+                ]);
+              } else {
+                Alert.alert('خطأ', result?.error || 'لم يتم حذف الملاحظة');
+              }
             } catch (error) {
               Alert.alert('خطأ', 'لم يتم حذف الملاحظة');
             }
@@ -556,7 +570,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   saveButtonContainer: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#12A150',
   },
   reminderButtonContainer: {
     backgroundColor: '#052814',

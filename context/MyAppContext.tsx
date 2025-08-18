@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AuthApi, API } from '../services/api';
 
 type MyAppContextType = {
   username: string;
@@ -11,6 +12,12 @@ type MyAppContextType = {
   resetAppState: () => Promise<void>;
   forceResetToOnboarding: () => Promise<void>;
   isLoading: boolean;
+  // New authentication properties
+  isAuthenticated: boolean;
+  userData: any;
+  login: (idToken: string, fcmToken: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  checkAuthStatus: () => Promise<void>;
 };
 
 const MyAppContext = createContext<MyAppContextType | undefined>(undefined);
@@ -23,13 +30,88 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [hasCompletedLogin, setHasCompletedLogin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // New authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userData, setUserData] = useState<any>(null);
+
+  // Check authentication status on app start
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
+
+  // Check if user is authenticated
+  const checkAuthStatus = async () => {
+    try {
+      setIsLoading(true);
+      const authenticated = await AuthApi.isAuthenticated();
+      const user = await AuthApi.getUserData();
+      
+      setIsAuthenticated(authenticated);
+      setUserData(user);
+      
+      if (authenticated && user) {
+        setUsername(user.name || 'زائر');
+        setHasCompletedLogin(true);
+      }
+      
+      console.log('🔐 Auth status checked:', { authenticated, user });
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      setIsAuthenticated(false);
+      setUserData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Login function
+  const login = async (idToken: string, fcmToken: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      const result = await AuthApi.loginWithGoogle(idToken, fcmToken);
+      
+      if (result.success && result.data) {
+        setIsAuthenticated(true);
+        setUserData(result.data.user);
+        setUsername(result.data.user.name || 'زائر');
+        setHasCompletedLogin(true);
+        console.log('✅ Login successful:', result.data.user);
+        return true;
+      } else {
+        console.error('❌ Login failed:', result.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Logout function
+  const logout = async () => {
+    try {
+      setIsLoading(true);
+      await AuthApi.logout();
+      setIsAuthenticated(false);
+      setUserData(null);
+      setUsername('زائر');
+      setHasCompletedLogin(false);
+      console.log('✅ Logout successful');
+    } catch (error) {
+      console.error('Error during logout:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Always start fresh - don't load previous state
   useEffect(() => {
     console.log('📱 Starting fresh - not loading previous state');
     // Always start with fresh state
     setHasCompletedOnboarding(false);
-    setHasCompletedLogin(false);
+    // Note: We don't reset login state here anymore as it's handled by checkAuthStatus
     setIsLoading(false);
   }, []);
 
@@ -54,6 +136,9 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
       ]);
       setHasCompletedOnboarding(false);
       setHasCompletedLogin(false);
+      setIsAuthenticated(false);
+      setUserData(null);
+      setUsername('زائر');
       console.log('🔄 Reset app state completed');
     } catch (error) {
       console.error('Error resetting app state:', error);
@@ -69,6 +154,9 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
       ]);
       setHasCompletedOnboarding(false);
       setHasCompletedLogin(false);
+      setIsAuthenticated(false);
+      setUserData(null);
+      setUsername('زائر');
       setIsLoading(false);
       console.log('🚀 Force reset to onboarding completed');
     } catch (error) {
@@ -86,7 +174,13 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
       setHasCompletedLogin: handleSetHasCompletedLogin,
       resetAppState,
       forceResetToOnboarding,
-      isLoading
+      isLoading,
+      // New authentication properties
+      isAuthenticated,
+      userData,
+      login,
+      logout,
+      checkAuthStatus,
     }}>
       {children}
     </MyAppContext.Provider>

@@ -15,6 +15,8 @@ import { Trophy, Plus, Target, Calendar, DollarSign, ChevronDown, X, Heart, Car,
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
 import DatePickerModal from '@/app/Components/datePicker';
+import { useGoals, useCreateGoal, useUpdateGoal, useAddGoalAmount } from '@/hooks/useApiData';
+import { GoalType } from '@/services/api';
 
 interface BigGoal {
   id: string;
@@ -81,6 +83,37 @@ export default function BigGoalsScreen() {
     Tajawal_500Medium,
   });
 
+  const { data: apiGoals, refetch: refetchGoals } = useGoals();
+  const { mutate: createGoal } = useCreateGoal();
+  const { mutate: updateGoalApi } = useUpdateGoal();
+  const { mutate: addGoalAmount } = useAddGoalAmount();
+
+  const monthsEnToAr = months;
+
+  const mapApiGoalToLocal = (g: any): BigGoal => {
+    const dt = g.targetDate ? new Date(g.targetDate) : new Date();
+    return {
+      id: g.id,
+      type: (g.type || 'other').toString(),
+      name: g.title,
+      totalCost: g.targetAmount,
+      currentAmount: g.currentAmount,
+      monthlyAmount: 0,
+      targetDate: {
+        day: dt.getDate(),
+        month: monthsEnToAr[dt.getMonth()],
+        year: dt.getFullYear(),
+      },
+      createdAt: new Date(g.createdAt || Date.now()),
+    };
+  };
+
+  React.useEffect(() => {
+    if (apiGoals) {
+      setGoals(apiGoals.map(mapApiGoalToLocal));
+    }
+  }, [apiGoals]);
+
   const resetForm = () => {
     setNewGoal({
       type: '',
@@ -143,10 +176,14 @@ export default function BigGoalsScreen() {
     if (updatedCurrent < 0) updatedCurrent = 0;
     if (updatedCurrent > goalToAdjust.totalCost) updatedCurrent = goalToAdjust.totalCost;
 
-    const updatedGoals = goals.map((g) =>
-      g.id === goalToAdjust.id ? { ...g, currentAmount: updatedCurrent } : g
-    );
-    setGoals(updatedGoals);
+    // Optimistic update
+    setGoals((prev) => prev.map((g) => (g.id === goalToAdjust.id ? { ...g, currentAmount: updatedCurrent } : g)));
+    // Persist to API
+    if (type === 'add') {
+      addGoalAmount({ id: goalToAdjust.id, amount: numericAmount });
+    } else {
+      updateGoalApi({ id: goalToAdjust.id, data: { currentAmount: updatedCurrent } });
+    }
     setShowAdjustForm(false);
     setGoalToAdjust(null);
     setAdjustAmount('');
@@ -159,25 +196,52 @@ export default function BigGoalsScreen() {
       return;
     }
 
-    const goal: BigGoal = {
-      id: Date.now().toString(),
-      type: newGoal.type,
-      name: newGoal.name,
-      totalCost: parseFloat(newGoal.totalCost),
-      currentAmount: parseFloat(newGoal.currentAmount) || 0,
-      monthlyAmount: parseFloat(newGoal.monthlyAmount) || 0,
-      targetDate: newGoal.targetDate,
-      createdAt: new Date(),
+    const toGoalType = (id: string): GoalType => {
+      switch (id) {
+        case 'car':
+        case 'house':
+          return GoalType.PURCHASE;
+        case 'business':
+          return GoalType.INVESTMENT;
+        case 'education':
+          return GoalType.EDUCATION;
+        case 'marriage':
+          return GoalType.OTHER;
+        default:
+          return GoalType.OTHER;
+      }
     };
 
-    setGoals([...goals, goal]);
+    const target = new Date(newGoal.targetDate.year, months.indexOf(newGoal.targetDate.month), newGoal.targetDate.day);
+
+    const payload = {
+      title: newGoal.name,
+      description: undefined,
+      targetAmount: parseFloat(newGoal.totalCost),
+      currentAmount: parseFloat(newGoal.currentAmount) || 0,
+      type: toGoalType(newGoal.type),
+      targetDate: target.toISOString(),
+      icon: undefined,
+      color: undefined,
+    } as any;
+
+    const result = await createGoal(payload);
+    if (result?.success) {
+      refetchGoals();
+    }
     resetForm();
     setShowAddForm(false);
     
     // جدولة إشعار تذكير الادخار الشهري
     try {
-      if (goal.monthlyAmount > 0) {
-        await notificationService.scheduleBigGoalSavingReminder(goal);
+      if (parseFloat(newGoal.monthlyAmount) > 0) {
+        await notificationService.scheduleBigGoalSavingReminder({
+          id: 'temp',
+          name: newGoal.name,
+          amount: parseFloat(newGoal.monthlyAmount),
+          dueDate: target,
+          recurring: true,
+        } as any);
       }
     } catch (error) {
       console.error('خطأ في جدولة إشعار الهدف الكبير:', error);

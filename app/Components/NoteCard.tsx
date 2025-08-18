@@ -35,14 +35,14 @@ export function NoteCard({ note, onPress, onTogglePin, onDelete }: NoteCardProps
 
   const getCardColor = () => {
     if (note.isPinned) return '#B8860B'; // ذهبي للمثبتة
-    if (note.reminder) return '#22C55E'; // أخضر للتذكيرات
+    if (note.reminder) return '#12A150'; // أخضر للتذكيرات
     if (note.isTask) return '#3B82F6'; // أزرق للمهام
     return '#2D3748'; // رمادي داكن للعادية
   };
 
   const getBorderColor = () => {
     if (note.isPinned) return '#F59E0B';
-    if (note.reminder) return '#22C55E';
+    if (note.reminder) return '#12A150';
     if (note.isTask) return '#3B82F6';
     return '#e5e7eb';
   };
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   reminderChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#22C55E',
+    backgroundColor: '#12A150',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,

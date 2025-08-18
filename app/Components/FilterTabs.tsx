@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   filterTabActive: {
-    backgroundColor: '#22C55E',
+    backgroundColor: '#12A150',
   },
   filterTabText: {
     fontSize: 14,

@@ -7,6 +7,7 @@ import NotificationService from '@/services/NotificationService';
 import { MyAppProvider, useMyAppContext } from '@/context/MyAppContext';
 import * as Updates from 'expo-updates';
 
+// 316613776863-n5po0gp8sh925567o9a0m1ceufae7t0k.apps.googleusercontent.com
 
 function RootLayoutContent() {
   const { hasCompletedOnboarding, hasCompletedLogin, isLoading } = useMyAppContext();
@@ -32,14 +33,57 @@ function RootLayoutContent() {
         const notificationService = NotificationService.getInstance();
         await notificationService.registerForPushNotifications();
         NotificationService.setupNotificationHandler();
+        
+        // بدء الإشعارات الترحيبية المتكررة كل 30 ثانية
+        notificationService.startRecurringWelcomeNotifications();
+        console.log('تم بدء الإشعارات الترحيبية المتكررة بنجاح');
+        
+        // جدولة تذكير الراتب الشهري
+        await notificationService.scheduleMonthlyIncomeReminder();
+        console.log('تم جدولة تذكير الراتب الشهري بنجاح');
+        
+        // جدولة تقرير نهاية الشهر (آخر يوم من الشهر)
+        const now = new Date();
+        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 20, 0, 0); // 8 PM
+        
+        if (now.getDate() === lastDayOfMonth.getDate()) {
+          // إذا كان اليوم هو آخر يوم من الشهر، جدولة تقرير نهاية الشهر
+          const endOfMonthReport = await notificationService.scheduleNotification({
+            id: 'end-of-month-report-scheduled',
+            title: '📊 تقرير نهاية الشهر',
+            body: 'حان وقت مراجعة أدائك المالي لهذا الشهر! اضغط لإنشاء التقرير',
+            data: { type: 'end_of_month_reminder', screen: 'finance' },
+            trigger: { date: lastDayOfMonth, repeats: false },
+          });
+          console.log('تم جدولة تقرير نهاية الشهر بنجاح');
+        }
+        
+        // جدولة إشعار تحفيز المهام اليومية
+        await notificationService.scheduleDailyTaskMotivation();
+        console.log('تم جدولة إشعار تحفيز المهام اليومية بنجاح');
+        
+        // جدولة إشعار تحفيز المهام الأسبوعية
+        await notificationService.scheduleWeeklyTaskMotivation();
+        console.log('تم جدولة إشعار تحفيز المهام الأسبوعية بنجاح');
+        
+        // جدولة إشعار تحفيز المهام الشهرية
+        await notificationService.scheduleMonthlyTaskMotivation();
+        console.log('تم جدولة إشعار تحفيز المهام الشهرية بنجاح');
+        
+        // جدولة مراجعة الأهداف الكبرى الأسبوعية
+        await notificationService.scheduleBigGoalsWeeklyReview();
+        console.log('تم جدولة مراجعة الأهداف الكبرى الأسبوعية بنجاح');
+        
+        // جدولة الإشعارات التحفيزية العامة
+        await notificationService.scheduleGeneralMotivation();
+        console.log('تم جدولة الإشعارات التحفيزية العامة بنجاح');
       } catch (error) {
         console.error('خطأ في تهيئة الإشعارات:', error);
         // Continue without notifications for now
       }
     };
     
-    // Temporarily disable notifications to avoid errors
-    // initNotifications();
+    initNotifications();
   }, []);
 
   // Always start with onboarding on app load

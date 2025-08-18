@@ -118,8 +118,8 @@ export class NotificationService {
     
     return this.scheduleNotification({
       id: 'monthly-income-reminder',
-      title: '💰 تذكير الراتب الشهري',
-      body: 'حان وقت إدخال راتبك الشهري لهذا الشهر',
+      title: '💰💼 وصلت بداية الشهر؟ معاناه وقت الإدخال!',
+      body: 'لا تنسَ تسجيل راتبك الشهري في Growupe عشان نضبط لك ميزانيتك ✨ من أول يوم! 😉 خلنا نخطط مع بعض قبل لا تصرف ريال واحد!',
       data: { type: 'monthly_income', screen: 'finance' },
       trigger: {
         date: nextMonth,
@@ -148,15 +148,72 @@ export class NotificationService {
   async scheduleExpenseWarning(currentExpenses: number, monthlyIncome: number): Promise<string> {
     const percentage = (currentExpenses / monthlyIncome) * 100;
     
+    // تحسين منطق التحذير - تحذير عند تجاوز 50% من الراتب
     if (percentage >= 50) {
+      // إلغاء أي تحذيرات سابقة
+      await this.cancelNotification('expense-warning');
+      
       return this.scheduleNotification({
         id: 'expense-warning',
-        title: '⚠️ تحذير المصروفات',
-        body: `لقد تجاوزت مصروفاتك ${percentage.toFixed(0)}% من راتبك الشهري. يُنصح بمراجعة مصروفاتك`,
-        data: { type: 'expense_warning', screen: 'finance' },
+        title: '💸 "هونها تهون!"',
+        body: `"مصاريفك تعدّت نص راتبك!" 😉 "خذ لك لحظة، وراجع يون حار ريال، قبل لا يطيح الفأس بالراس!" (${percentage.toFixed(0)}% من راتبك)`,
+        data: { type: 'expense_warning', screen: 'finance', percentage: percentage },
         trigger: { seconds: 1, repeats: false }, // إشعار فوري
       });
     }
+    return '';
+  }
+
+  // تحذير الالتزامات - عند تجاوز 50% من الراتب
+  async scheduleCommitmentWarning(totalCommitments: number, monthlyIncome: number): Promise<string> {
+    const percentage = (totalCommitments / monthlyIncome) * 100;
+    
+    // تحذير عند تجاوز 50% من الراتب بالالتزامات فقط
+    if (percentage >= 50) {
+      // إلغاء أي تحذيرات سابقة للالتزامات
+      await this.cancelNotification('commitment-warning');
+      
+      return this.scheduleNotification({
+        id: 'commitment-warning',
+        title: '📉 يا حرّيص،التزاماتك كثرت شوي!',
+        body: `💼 نص راتبك طار قبل الشهر ما يكمُل، خلينا نراجع نرتّبها سوا. (${percentage.toFixed(0)}% من راتبك)`,
+        data: { type: 'commitment_warning', screen: 'finance', percentage: percentage },
+        trigger: { seconds: 1, repeats: false }, // إشعار فوري
+      });
+    }
+    return '';
+  }
+
+  // تقرير نهاية الشهر - تقييم الأداء المالي
+  async scheduleEndOfMonthReport(totalExpenses: number, totalCommitments: number, monthlyIncome: number): Promise<string> {
+    const totalSpent = totalExpenses + totalCommitments;
+    const percentage = (totalSpent / monthlyIncome) * 100;
+    
+    // إلغاء أي تقارير سابقة
+    await this.cancelNotification('end-of-month-report');
+    
+    // تقرير الأداء السيء - عند تجاوز 80% من الراتب
+    if (percentage >= 80) {
+      return this.scheduleNotification({
+        id: 'end-of-month-report',
+        title: 'مصاريف مرتفعة:',
+        body: `"صار وقت كشف الحساب الحقيقي! 📊 مصاريفك هذا الشهر كانت كثيرة، بس لا تشيل هم، نعيد ترتيب أوراقك ونبدأ من جديد بقوة! 💪" (${percentage.toFixed(0)}% من راتبك)`,
+        data: { type: 'end_of_month_report', screen: 'finance', percentage: percentage, performance: 'poor' },
+        trigger: { seconds: 1, repeats: false },
+      });
+    }
+    
+    // تقرير الأداء الممتاز - عند توفير أكثر من 30% من الراتب
+    if (percentage <= 70) {
+      return this.scheduleNotification({
+        id: 'end-of-month-report',
+        title: 'أداء ممتاز:',
+        body: `"يا سلام! 👏 أداءك المالي هذا الشهر ممتاز! وفّرت وقدرت تمسك نفسك، وهذي بداية مشوار الاستقلال المالي الحقيقي ✨" (${percentage.toFixed(0)}% من راتبك)`,
+        data: { type: 'end_of_month_report', screen: 'finance', percentage: percentage, performance: 'excellent' },
+        trigger: { seconds: 1, repeats: false },
+      });
+    }
+    
     return '';
   }
 
@@ -172,6 +229,158 @@ export class NotificationService {
       trigger: {
         hour: hours,
         minute: minutes,
+        repeats: true,
+      },
+    });
+  }
+
+  // إشعار تحفيز المهام اليومية - كل 24 ساعة
+  async scheduleDailyTaskMotivation(): Promise<string> {
+    // إلغاء أي إشعارات تحفيز سابقة
+    await this.cancelNotification('daily-task-motivation');
+    
+    // جدولة الإشعار التحفيزي كل 24 ساعة (8:00 صباحاً)
+    return this.scheduleNotification({
+      id: 'daily-task-motivation',
+      title: 'صباح الطموح يا صديق التغيير! 🌅',
+      body: 'وش تنتظر؟ مهامك تنتظرك تحققها وحدة وحدة، خلنا ننجز اليوم مع بعض ✅',
+      data: { type: 'daily_task_motivation', screen: 'daily-goals' },
+      trigger: {
+        hour: 8,
+        minute: 0,
+        repeats: true,
+      },
+    });
+  }
+
+  // إشعار تحفيز المهام الأسبوعية - كل جمعة
+  async scheduleWeeklyTaskMotivation(): Promise<string> {
+    // إلغاء أي إشعارات تحفيز أسبوعية سابقة
+    await this.cancelNotification('weekly-task-motivation');
+    
+    // جدولة الإشعار التحفيزي كل جمعة (9:00 صباحاً)
+    return this.scheduleNotification({
+      id: 'weekly-task-motivation',
+      title: 'جمعة مباركة! ✨',
+      body: 'وش أنجزت هذا الأسبوع؟ راجع مهامك، وسو تقييم سريع لأدائك. النجاح عادة، وأنت قدّها!',
+      data: { type: 'weekly_task_motivation', screen: 'daily-goals' },
+      trigger: {
+        weekday: 5, // الجمعة (0 = الأحد، 5 = الجمعة)
+        hour: 9,
+        minute: 0,
+        repeats: true,
+      },
+    });
+  }
+
+  // إشعار تحفيز المهام الشهرية - أول يوم من كل شهر
+  async scheduleMonthlyTaskMotivation(): Promise<string> {
+    // إلغاء أي إشعارات تحفيز شهرية سابقة
+    await this.cancelNotification('monthly-task-motivation');
+    
+    // جدولة الإشعار التحفيزي أول يوم من كل شهر (10:00 صباحاً)
+    return this.scheduleNotification({
+      id: 'monthly-task-motivation',
+      title: 'شهر جديد، أهداف جديدة 🎯',
+      body: 'نظّم مهامك من الحين وابدأ بداية تليق فيك… Growupe معك خطوة بخطوة 🚀',
+      data: { type: 'monthly_task_motivation', screen: 'daily-goals' },
+      trigger: {
+        day: 1, // أول يوم من الشهر
+        hour: 10,
+        minute: 0,
+        repeats: true,
+      },
+    });
+  }
+
+  // 📝 إشعارات الملاحظات
+  async scheduleNoteReminder(noteTitle: string, noteId: string): Promise<string> {
+    return this.scheduleNotification({
+      id: `note-reminder-${noteId}`,
+      title: 'تذكير بسيط بمذكّرتك: 📝',
+      body: `'${noteTitle}' تبينا نساعدك تحوّلها لفعل؟ نقدر نربطها بمهمة أو هدف 😉`,
+      data: { type: 'note_reminder', noteId: noteId, screen: 'smart-notes' },
+      trigger: {
+        seconds: 10800, // 3 ساعات
+        repeats: false,
+      },
+    });
+  }
+
+  // 🎯 إشعارات الأهداف الكبرى
+  async scheduleBigGoalsWeeklyReview(): Promise<string> {
+    await this.cancelNotification('big-goals-weekly-review');
+    
+    return this.scheduleNotification({
+      id: 'big-goals-weekly-review',
+      title: 'أحد الطموح! 🚀',
+      body: 'وين وصلت في أهدافك الكبيرة؟ خلّنا نراجع مع بعض، ولو تحتاج نغيرّ الخطة، Growupe جاهز معك ✨',
+      data: { type: 'big_goals_weekly_review', screen: 'big-goals' },
+      trigger: {
+        weekday: 0, // الأحد
+        hour: 11,
+        minute: 0,
+        repeats: true,
+      },
+    });
+  }
+
+  async scheduleBigGoalInactivityReminder(goalName: string, goalId: string): Promise<string> {
+    return this.scheduleNotification({
+      id: `big-goal-inactivity-${goalId}`,
+      title: 'ما نسينا حلمك الكبير! 💡',
+      body: `صار لك فترة ما حدّثت هدفك '${goalName}' يلا نرجع نكمل، التراجع ما هو خيار 🔥`,
+      data: { type: 'big_goal_inactivity', goalId: goalId, screen: 'big-goals' },
+      trigger: {
+        seconds: 604800, // أسبوع واحد
+        repeats: false,
+      },
+    });
+  }
+
+  async scheduleBigGoalMilestone(goalName: string, goalId: string, percentage: number): Promise<string> {
+    return this.scheduleNotification({
+      id: `big-goal-milestone-${goalId}-${percentage}`,
+      title: 'يا نجم! ⭐',
+      body: `أنجزت ${percentage}% من هدفك الكبير '${goalName}' خلك مستمر، النجاح قدّامك ينتظرك! 🌟`,
+      data: { type: 'big_goal_milestone', goalId: goalId, percentage: percentage, screen: 'big-goals' },
+      trigger: {
+        seconds: 1,
+        repeats: false,
+      },
+    });
+  }
+
+  // 💚 الإشعارات التحفيزية العامة
+  async scheduleGeneralMotivation(): Promise<string> {
+    const motivations = [
+      {
+        title: 'تطوّرك ما يحتاج معجزة… بس يحتاج تبدأ!',
+        body: 'ابدأ اليوم، حتى لو بخطوة صغيرة 😉'
+      },
+      {
+        title: 'تذكّر… المال والعادة والهدف، ثلاثي النجاح.',
+        body: 'Growupe 💚 وجميعهم تحت جناح واحد.'
+      },
+      {
+        title: 'لو نفسك تغيرّ شي في حياتك، لا تنتظر أحد.',
+        body: 'ابدأ بنفسك… وخل Growupe رفيقك في الرحلة! 🚀'
+      }
+    ];
+
+    // اختيار تحفيز عشوائي
+    const randomMotivation = motivations[Math.floor(Math.random() * motivations.length)];
+    
+    await this.cancelNotification('general-motivation');
+    
+    return this.scheduleNotification({
+      id: 'general-motivation',
+      title: randomMotivation.title,
+      body: randomMotivation.body,
+      data: { type: 'general_motivation', screen: 'index' },
+      trigger: {
+        hour: 12,
+        minute: 0,
         repeats: true,
       },
     });
@@ -284,6 +493,73 @@ export class NotificationService {
       data: { type: 'smart_note', noteId: note.id, screen: 'smart-notes' },
       trigger: trigger || { seconds: 3600, repeats: false },
     });
+  }
+
+  // جدولة إشعار ترحيبي كل 30 ثانية
+  async scheduleWelcomeNotification(): Promise<string> {
+    // إلغاء أي إشعارات ترحيبية سابقة
+    await this.cancelNotification('welcome-notification');
+    
+    // جدولة الإشعار الأول بعد 30 ثانية
+    const firstNotificationId = await this.scheduleNotification({
+      id: 'welcome-notification',
+      title: 'hello',
+      body: 'welcome to growUp',
+      data: { type: 'welcome' },
+      trigger: {
+        seconds: 30,
+        repeats: false,
+      },
+    });
+
+    // جدولة الإشعارات المتكررة كل 30 ثانية
+    const scheduleNextNotification = async () => {
+      try {
+        await this.scheduleNotification({
+          id: `welcome-notification-${Date.now()}`,
+          title: 'hello',
+          body: 'welcome to growUp',
+          data: { type: 'welcome' },
+          trigger: {
+            seconds: 30,
+            repeats: false,
+          },
+        });
+      } catch (error) {
+        console.error('خطأ في جدولة الإشعار التالي:', error);
+      }
+    };
+
+    // جدولة الإشعار التالي بعد 30 ثانية
+    setTimeout(scheduleNextNotification, 30000);
+
+    return firstNotificationId;
+  }
+
+  // بدء الإشعارات المتكررة كل 30 ثانية
+  startRecurringWelcomeNotifications(): void {
+    const scheduleNotification = async () => {
+      try {
+        await this.scheduleNotification({
+          id: `welcome-notification-${Date.now()}`,
+          title: 'hello',
+          body: 'welcome to growUp',
+          data: { type: 'welcome' },
+          trigger: {
+            seconds: 1, // إشعار فوري
+            repeats: false,
+          },
+        });
+      } catch (error) {
+        console.error('خطأ في جدولة الإشعار:', error);
+      }
+    };
+
+    // جدولة الإشعار الأول
+ 
+
+    // جدولة الإشعارات كل 30 ثانية
+    // setInterval(scheduleNotification, 30000);
   }
 
   // معالج النقر على الإشعار

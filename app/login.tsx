@@ -13,13 +13,15 @@ import { router } from 'expo-router';
 import { Sprout } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import { useMyAppContext } from '@/context/MyAppContext';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 
 // Enable RTL for Arabic
-
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
-  const { setHasCompletedLogin } = useMyAppContext();
-  const [isLoading, setIsLoading] = useState(false);
+  const { login, isLoading } = useMyAppContext();
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
@@ -27,28 +29,73 @@ export default function LoginScreen() {
     Tajawal_500Medium,
   });
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
+  // Google OAuth configuration
+  const [request, response, promptAsync] = Google.useAuthRequest({
+// 316613776863-n5po0gp8sh925567o9a0m1ceufae7t0k.apps.googleusercontent.com
+    androidClientId: '316613776863-rmj19rffjv4d5amkjubikd79iqnb4n4d.apps.googleusercontent.com', // Replace with your actual Android client ID
+  });
+
+  // Handle Google OAuth response
+  React.useEffect(() => {
+    if (response?.type === 'success' && response.authentication) {
+      const { authentication } = response;
+      handleGoogleLogin(authentication.accessToken);
+    }
+  }, [response]);
+
+  const handleGoogleLogin = async (idToken: string) => {
+    setIsLoggingIn(true);
     
-    // Simulate Google login process
-    setTimeout(() => {
-      setIsLoading(false);
-      Alert.alert(
-        'تم تسجيل الدخول بنجاح',
-        'مرحباً بك في GrowUp!',
-        [
-          {
-            text: 'متابعة',
-            onPress: async () => {
-              // Mark login as completed (for current session only)
-              setHasCompletedLogin(true);
-              // Navigate to main app
-              router.replace('/(tabs)' as any);
+    try {
+      // For now, we'll use a mock FCM token
+      // In a real app, you'd get this from your notification service
+      const fcmToken = 'mock-fcm-token-' + Date.now();
+      
+      const success = await login(idToken, fcmToken);
+      
+      if (success) {
+        Alert.alert(
+          'تم تسجيل الدخول بنجاح',
+          'مرحباً بك في GrowUp!',
+          [
+            {
+              text: 'متابعة',
+              onPress: () => {
+                router.replace('/(tabs)' as any);
+              },
             },
-          },
-        ]
+          ]
+        );
+      } else {
+        Alert.alert(
+          'خطأ في تسجيل الدخول',
+          'حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.',
+          [{ text: 'حسناً' }]
+        );
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert(
+        'خطأ في تسجيل الدخول',
+        'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
+        [{ text: 'حسناً' }]
       );
-    }, 2000);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleGoogleLoginPress = async () => {
+    try {
+      await promptAsync();
+    } catch (error) {
+      console.error('Error prompting Google login:', error);
+      Alert.alert(
+        'خطأ في تسجيل الدخول',
+        'لا يمكن الاتصال بخدمة Google. يرجى المحاولة مرة أخرى.',
+        [{ text: 'حسناً' }]
+      );
+    }
   };
 
   if (!fontsLoaded) {
@@ -78,16 +125,16 @@ export default function LoginScreen() {
             <Text style={styles.loginTitle}>تسجيل الدخول</Text>
             
             <TouchableOpacity
-              style={[styles.googleButton, isLoading && styles.googleButtonDisabled]}
-              onPress={handleGoogleLogin}
-              disabled={isLoading}
+              style={[styles.googleButton, (isLoading || isLoggingIn) && styles.googleButtonDisabled]}
+              onPress={handleGoogleLoginPress}
+              disabled={isLoading || isLoggingIn}
             >
               <View style={styles.googleButtonContent}>
                 <View style={styles.googleIcon}>
                   <Text style={styles.googleIconText}>G</Text>
                 </View>
                 <Text style={styles.googleButtonText}>
-                  {isLoading ? 'جاري تسجيل الدخول...' : 'المواصلة باستخدام Google'}
+                  {isLoading || isLoggingIn ? 'جاري تسجيل الدخول...' : 'المواصلة باستخدام Google'}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -99,30 +146,23 @@ export default function LoginScreen() {
               <View style={styles.disabledInput}>
                 <Text style={styles.disabledPlaceholder}>البريد الإلكتروني</Text>
               </View>
-              
               <View style={styles.disabledInput}>
                 <Text style={styles.disabledPlaceholder}>كلمة المرور</Text>
               </View>
-
-              <TouchableOpacity style={styles.disabledLink}>
-                <Text style={styles.disabledLinkText}>نسيت كلمة المرور؟</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.disabledLoginButton}>
-                <Text style={styles.disabledLoginButtonText}>تسجيل الدخول</Text>
+              <TouchableOpacity style={styles.disabledButton}>
+                <Text style={styles.disabledButtonText}>تسجيل الدخول</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.signupText}>
-              ليس لديك حساب؟ إنشاء حساب جديد
-            </Text>
-          </View>
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              بتسجيل الدخول، فإنك توافق على شروط الخدمة وسياسة الخصوصية
-            </Text>
+            {/* Terms and Privacy */}
+            <View style={styles.termsSection}>
+              <Text style={styles.termsText}>
+                بالاستمرار، أنت توافق على{' '}
+                <Text style={styles.linkText}>شروط الاستخدام</Text>
+                {' '}و{' '}
+                <Text style={styles.linkText}>سياسة الخصوصية</Text>
+              </Text>
+            </View>
           </View>
         </View>
       </LinearGradient>
@@ -257,42 +297,30 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'right',
   },
-  disabledLink: {
-    alignSelf: 'flex-end',
-    marginBottom: 16,
-  },
-  disabledLinkText: {
-    fontSize: 14,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#3B82F6',
-  },
-  disabledLoginButton: {
+  disabledButton: {
     backgroundColor: '#095028',
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
   },
-  disabledLoginButtonText: {
+  disabledButtonText: {
     fontSize: 16,
     fontFamily: 'Tajawal_500Medium',
     color: '#FFFFFF',
   },
-  signupText: {
-    fontSize: 14,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 8,
+  termsSection: {
+    marginTop: 20,
   },
-  footer: {
-    alignItems: 'center',
-  },
-  footerText: {
+  termsText: {
     fontSize: 12,
     fontFamily: 'Tajawal_400Regular',
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  linkText: {
+    color: '#3B82F6',
+    textDecorationLine: 'underline',
   },
 });

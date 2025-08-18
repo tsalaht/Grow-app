@@ -91,7 +91,7 @@ export function ReminderModal({
                 style={styles.dateTimeButton}
                 onPress={() => setDatePickerVisible(true)}
               >
-                <Calendar size={20} color="#22C55E"  />
+                <Calendar size={20} color="#12A150"  />
                 <View style={styles.dateTimeText}>
                   <Text style={styles.dateTimeLabel}>التاريخ</Text>
                   <Text style={styles.dateTimeValue}>
@@ -105,7 +105,7 @@ export function ReminderModal({
                 style={styles.dateTimeButton}
                 onPress={() => setTimePickerVisible(true)}
               >
-                <Clock size={20} color="#22C55E" />
+                <Clock size={20} color="#12A150" />
                 <View style={styles.dateTimeText}>
                   <Text style={styles.dateTimeLabel}>الوقت</Text>
                   <Text style={styles.dateTimeValue}>
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     borderRadius: 12,
-    backgroundColor: '#22C55E',
+    backgroundColor: '#12A150',
   },
   saveButtonText: {
     fontSize: 16,

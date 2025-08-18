@@ -11,10 +11,22 @@ import {
   I18nManager,
   Modal,
 } from 'react-native';
-import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, ChartBar as BarChart3, Calculator, FileText, CreditCard, Save, X, CreditCard as Edit3, Trash2, Utensils, Plane, PartyPopper, ShoppingBag, BookOpen, Heart, Receipt, Tag } from 'lucide-react-native';
-import { Chrome as Home, Car, CalendarDays } from 'lucide-react-native';
+import { DollarSign, TrendingUp, TrendingDown, Plus, Calendar, ChartBar as BarChart3, Calculator, FileText, CreditCard, Save, X, CreditCard as Edit3, Trash2, Utensils, Plane, PartyPopper, ShoppingBag, BookOpen, Heart, Receipt, Tag, Home, Car, Building, Users, CreditCard as CreditCardIcon, Calendar as CalendarIcon } from 'lucide-react-native';
+import { Chrome as HomeIcon, Car as CarIcon, CalendarDays } from 'lucide-react-native';
 import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
 import NotificationService from '@/services/NotificationService';
+import { 
+  useSetIncome,
+  useFinanceOverview,
+  useAddExpense,
+  useAddObligation,
+  useCurrentMonthExpenses,
+  useObligations,
+  useSummarySixMonths
+} from '@/hooks/useApiData';
+import { ExpenseCategory, ObligationType } from '@/services/api';
+import { ReminderModal } from '@/app/Components/ReminderModal';
+import { CommitmentDateModal } from '@/app/Components/CommitmentDateModal';
 
 
 
@@ -52,6 +64,9 @@ export default function FinanceScreen() {
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showCommitmentModal, setShowCommitmentModal] = useState(false);
+  const [showCommitmentTypeModal, setShowCommitmentTypeModal] = useState(false);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [showCommitmentDateModal, setShowCommitmentDateModal] = useState(false);
   const [notificationService] = useState(() => NotificationService.getInstance());
   
   // New expense form
@@ -82,8 +97,9 @@ export default function FinanceScreen() {
     name: '',
     amount: '',
     type: 'monthly' as 'monthly' | 'yearly',
-    date: '',
-    notes: ''
+    date: null as Date | null,
+    notes: '',
+    reminderDate: null as Date | null
   });
 
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([
@@ -131,6 +147,14 @@ export default function FinanceScreen() {
 
   const currentMonthData = getCurrentMonthData();
 
+  const { mutate: setIncome } = useSetIncome();
+  const { refetch: refetchOverview } = useFinanceOverview(`${currentYear}-${String(currentDate.getMonth() + 1).padStart(2,'0')}`);
+  const { mutate: addExpenseApi } = useAddExpense();
+  const { mutate: addObligationApi } = useAddObligation();
+  const { refetch: refetchExpenses } = useCurrentMonthExpenses();
+  const { refetch: refetchObligations } = useObligations();
+  const { data: summary, refetch: refetchSummary } = useSummarySixMonths();
+
   const saveMonthlyIncome = async () => {
     const income = parseFloat(monthlyIncome);
     if (isNaN(income) || income <= 0) {
@@ -170,6 +194,14 @@ export default function FinanceScreen() {
     setMonthlyData(updatedData);
     setMonthlyIncome('');
     setShowIncomeModal(false);
+    
+    // Persist to API
+    try {
+      const monthKey = `${currentYear}-${String(currentDate.getMonth() + 1).padStart(2,'0')}`;
+      await setIncome({ month: monthKey, amount: income });
+      refetchOverview();
+      refetchSummary();
+    } catch {}
     
     // جدولة إشعار تذكير الراتب للشهر القادم
     try {
@@ -246,19 +278,45 @@ export default function FinanceScreen() {
     setCustomExpenseCategory('');
     setShowExpenseDropdown(false);
     setShowExpenseModal(false);
+    // Persist to API
+    try {
+      const apiExpense = {
+        title: expense.name,
+        amount: expense.amount,
+        category: ExpenseCategory.OTHER,
+        date: new Date().toISOString(),
+        description: expense.category,
+        isRecurring: false,
+      } as any;
+      await addExpenseApi(apiExpense);
+      refetchExpenses();
+      refetchOverview();
+    } catch {}
     
-    // فحص تحذير المصروفات
+    // فحص تحذير المصروفات والالتزامات - تحسين المنطق
     const currentData = updatedData.find(data => 
       data.year === currentYear && data.monthNumber === currentDate.getMonth() + 1
     );
     const totalExpenses = currentData?.expenses.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+    const totalCommitments = currentData?.commitments.reduce((sum, com) => sum + com.amount, 0) || 0;
+    const totalSpent = totalExpenses + totalCommitments;
     const monthlyIncomeAmount = currentData?.income || 0;
     
-    if (monthlyIncomeAmount > 0) {
+    // تحذير عند تجاوز 50% من الراتب (يشمل المصروفات والالتزامات)
+    if (monthlyIncomeAmount > 0 && totalSpent > 0) {
       try {
-        await notificationService.scheduleExpenseWarning(totalExpenses, monthlyIncomeAmount);
+        await notificationService.scheduleExpenseWarning(totalSpent, monthlyIncomeAmount);
       } catch (error) {
         console.error('خطأ في فحص تحذير المصروفات:', error);
+      }
+    }
+    
+    // تحذير منفصل للالتزامات فقط
+    if (monthlyIncomeAmount > 0 && totalCommitments > 0) {
+      try {
+        await notificationService.scheduleCommitmentWarning(totalCommitments, monthlyIncomeAmount);
+      } catch (error) {
+        console.error('خطأ في فحص تحذير الالتزامات:', error);
       }
     }
     
@@ -266,16 +324,32 @@ export default function FinanceScreen() {
   };
 
   const commitmentCategories = [
-    { id: 'rent', name: 'إيجار', icon: '🏠' },
-    { id: 'car_payment', name: 'قسط سيارة', icon: '🚗' },
-    { id: 'house_payment', name: 'قسط منزل', icon: '🏡' },
-    { id: 'invitation', name: 'عزومة', icon: '🍽️' },
-    { id: 'monthly_fixed', name: 'التزام شهري ثابت', icon: '🗓️' },
-    { id: 'other', name: 'أخرى', icon: '' },
+    { id: 'rent', name: 'إيجار', icon: Home },
+    { id: 'car_payment', name: 'قسط سيارة', icon: Car },
+    { id: 'house_payment', name: 'قسط منزل', icon: Building },
+    { id: 'invitation', name: 'عزومة', icon: Users },
+    { id: 'monthly_fixed', name: 'التزام شهري ثابت', icon: CalendarIcon },
+    { id: 'other', name: 'أخرى', icon: CreditCardIcon },
   ];
 
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
+
+  // دالة إنشاء تقرير نهاية الشهر
+  const generateEndOfMonthReport = async () => {
+    const currentData = getCurrentMonthData();
+    const totalExpenses = currentData.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalCommitments = currentData.commitments.reduce((sum, com) => sum + com.amount, 0);
+    const monthlyIncome = currentData.income;
+    
+    if (monthlyIncome > 0) {
+      try {
+        await notificationService.scheduleEndOfMonthReport(totalExpenses, totalCommitments, monthlyIncome);
+        console.log('تم إنشاء تقرير نهاية الشهر بنجاح');
+      } catch (error) {
+        console.error('خطأ في إنشاء تقرير نهاية الشهر:', error);
+      }
+    }
+  };
 
   const addCommitment = async () => {
     const amount = parseFloat(newCommitment.amount || '0');
@@ -307,10 +381,51 @@ export default function FinanceScreen() {
     });
 
     setMonthlyData(updatedData);
-    setNewCommitment({ name: '', amount: '', type: 'monthly', date: '', notes: '' });
+    setNewCommitment({ name: '', amount: '', type: 'monthly', date: null, notes: '', reminderDate: null });
     setSelectedCategory('');
-    setShowDropdown(false);
     setShowCommitmentModal(false);
+    // Persist to API
+    try {
+      const apiOb = {
+        title: commitment.name,
+        amount: commitment.amount,
+        type: ObligationType.OTHER,
+        dueDate: (newCommitment.date || new Date()).toISOString(),
+        description: newCommitment.notes || undefined,
+        isPaid: false,
+        priority: 'medium' as const,
+      };
+      await addObligationApi(apiOb as any);
+      refetchObligations();
+      refetchOverview();
+    } catch {}
+    
+    // فحص تحذير المصروفات والالتزامات بعد إضافة الالتزام
+    const currentData = updatedData.find(data => 
+      data.year === currentYear && data.monthNumber === currentDate.getMonth() + 1
+    );
+    const totalExpenses = currentData?.expenses.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+    const totalCommitments = currentData?.commitments.reduce((sum, com) => sum + com.amount, 0) || 0;
+    const totalSpent = totalExpenses + totalCommitments;
+    const monthlyIncomeAmount = currentData?.income || 0;
+    
+    // تحذير عند تجاوز 50% من الراتب (يشمل المصروفات والالتزامات)
+    if (monthlyIncomeAmount > 0 && totalSpent > 0) {
+      try {
+        await notificationService.scheduleExpenseWarning(totalSpent, monthlyIncomeAmount);
+      } catch (error) {
+        console.error('خطأ في فحص تحذير المصروفات:', error);
+      }
+    }
+    
+    // تحذير منفصل للالتزامات فقط
+    if (monthlyIncomeAmount > 0 && totalCommitments > 0) {
+      try {
+        await notificationService.scheduleCommitmentWarning(totalCommitments, monthlyIncomeAmount);
+      } catch (error) {
+        console.error('خطأ في فحص تحذير الالتزامات:', error);
+      }
+    }
     
     // جدولة إشعار تذكير الالتزام
     try {
@@ -498,10 +613,18 @@ export default function FinanceScreen() {
 
   const renderReportsTab = () => (
     <View style={styles.tabContent}>
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={generateEndOfMonthReport}
+      >
+        <FileText size={20} color="#FFFFFF" />
+        <Text style={styles.addButtonText}>إنشاء تقرير نهاية الشهر</Text>
+      </TouchableOpacity>
+
       <View style={styles.reportsCard}>
         <FileText size={48} color="#8B5CF6" />
         <Text style={styles.reportsTitle}>التقارير المالية</Text>
-        <Text style={styles.reportsSubtitle}>قريباً - تقارير مفصلة وتحليلات مالية ذكية</Text>
+        <Text style={styles.reportsSubtitle}>احصل على تقرير مفصل عن أدائك المالي هذا الشهر</Text>
       </View>
     </View>
   );
@@ -700,47 +823,47 @@ export default function FinanceScreen() {
             </View>
             
             <ScrollView style={styles.formContainer} showsVerticalScrollIndicator={false}>
-              <Text style={styles.fieldLabel}>اسم الالتزام</Text>
+                            <Text style={styles.fieldLabel}>اسم الالتزام</Text>
               <TouchableOpacity 
                 style={styles.dropdownButton}
-                onPress={() => setShowDropdown(!showDropdown)}
+                onPress={() => setShowCommitmentTypeModal(true)}
               >
-                <Text style={styles.dropdownText}>
-                  {selectedCategory ? 
-                    `${commitmentCategories.find(cat => cat.id === selectedCategory)?.icon} ${commitmentCategories.find(cat => cat.id === selectedCategory)?.name}` : 
-                    'اختر نوع الالتزام'
+                <View style={styles.dropdownButtonContent}>
+                  {selectedCategory ? (
+                    <>
+                      {(() => {
+                        const IconComponent = commitmentCategories.find(cat => cat.id === selectedCategory)?.icon;
+                        return IconComponent ? <IconComponent size={20} color="#374151" /> : null;
+                      })()}
+                      <Text style={styles.dropdownText}>
+                        {commitmentCategories.find(cat => cat.id === selectedCategory)?.name}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={styles.dropdownText}>اختر نوع الالتزام</Text>
+                  )}
+                </View>
+                <Text style={styles.dropdownArrow}>▼</Text>
+              </TouchableOpacity>
+            
+              <Text style={styles.fieldLabel}>تاريخ الالتزام</Text>
+              <TouchableOpacity 
+                style={styles.dateButton}
+                onPress={() => setShowCommitmentDateModal(true)}
+              >
+                <Calendar size={20} color="#374151" />
+                <Text style={styles.dateButtonText}>
+                  {newCommitment.date 
+                    ? newCommitment.date.toLocaleDateString('ar-SA', {
+                        weekday: 'long',
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : 'اختر تاريخ الالتزام'
                   }
                 </Text>
-                <Text style={styles.dropdownArrow}>{showDropdown ? '▲' : '▼'}</Text>
               </TouchableOpacity>
-              
-              {showDropdown && (
-                <View style={styles.dropdownList}>
-                  {commitmentCategories.map((category) => (
-                    <TouchableOpacity
-                      key={category.id}
-                      style={styles.dropdownItem}
-                      onPress={() => {
-                        setSelectedCategory(category.id);
-                        setShowDropdown(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownItemText}>
-                        {category.icon} {category.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            
-              <Text style={styles.fieldLabel}>تاريخ الالتزام الشهري</Text>
-              <TextInput
-                style={styles.formInput}
-                placeholder="25 أبريل 2524"
-                value={newCommitment.date}
-                onChangeText={(text) => setNewCommitment({...newCommitment, date: text})}
-                textAlign="right"
-              />
               
               <Text style={styles.fieldLabel}>القيمة</Text>
               <TextInput
@@ -763,6 +886,8 @@ export default function FinanceScreen() {
                 textAlign="right"
                 textAlignVertical="top"
               />
+              
+        
             </ScrollView>
             
             <TouchableOpacity style={styles.fullWidthSaveButton} onPress={addCommitment}>
@@ -771,6 +896,66 @@ export default function FinanceScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Commitment Type Selection Modal */}
+      <Modal
+        visible={showCommitmentTypeModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCommitmentTypeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>اختر نوع الالتزام</Text>
+              <TouchableOpacity onPress={() => setShowCommitmentTypeModal(false)}>
+                <X size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.commitmentTypeList} showsVerticalScrollIndicator={false}>
+              {commitmentCategories.map((category) => {
+                const IconComponent = category.icon;
+                return (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={styles.commitmentTypeItem}
+                    onPress={() => {
+                      setSelectedCategory(category.id);
+                      setShowCommitmentTypeModal(false);
+                    }}
+                  >
+                    <IconComponent size={24} color="#374151" />
+                    <Text style={styles.commitmentTypeItemText}>{category.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Commitment Date Modal */}
+      <CommitmentDateModal
+        visible={showCommitmentDateModal}
+        onClose={() => setShowCommitmentDateModal(false)}
+        onSetDate={(date, type) => {
+          setNewCommitment({...newCommitment, date: date, type: type});
+          setShowCommitmentDateModal(false);
+        }}
+        currentDate={newCommitment.date}
+        currentType={newCommitment.type}
+      />
+
+      {/* Reminder Modal */}
+      <ReminderModal
+        visible={showReminderModal}
+        onClose={() => setShowReminderModal(false)}
+        onSetReminder={(date) => {
+          setNewCommitment({...newCommitment, reminderDate: date});
+          setShowReminderModal(false);
+        }}
+        currentReminder={newCommitment.reminderDate}
+      />
     </SafeAreaView>
   );
 }
@@ -1314,7 +1499,7 @@ const styles = StyleSheet.create({
   fullScreenModal: {
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    padding: 0,
+    padding: 12,
     width: '100%',
     height: '90%',
     maxHeight: '90%',
@@ -1413,5 +1598,59 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Tajawal_700Bold',
     color: '#FFFFFF',
+  },
+  reminderButton: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    marginBottom: 20,
+    gap: 12,
+  },
+  reminderButtonText: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+    flex: 1,
+    textAlign: 'right',
+  },
+  commitmentTypeList: {
+    maxHeight: 300,
+  },
+  commitmentTypeItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    gap: 12,
+  },
+  commitmentTypeItemText: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+    textAlign: 'right',
+    flex: 1,
+  },
+  dateButton: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    marginBottom: 20,
+    gap: 12,
+  },
+  dateButtonText: {
+    fontSize: 16,
+    fontFamily: 'Tajawal_400Regular',
+    color: '#374151',
+    flex: 1,
+    textAlign: 'right',
   },
 });
