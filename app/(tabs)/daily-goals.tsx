@@ -37,6 +37,7 @@ import {
 } from '../../hooks/useApiData';
 import { TaskType, TaskResponse, TaskRequest } from '../../types/api';
 import { API } from '@/services/api';
+import NotificationService from '@/services/NotificationService';
 
 // Set default font for Text and TextInput across this screen
 // Safe to do at module scope and does not affect hooks
@@ -336,6 +337,25 @@ const priorityData = [
     };
     const result = await createTask(payload);
     if (result?.success) {
+      // Schedule notification only based on category
+      try {
+        const service = NotificationService.getInstance();
+        const created = result.data as any;
+        const createdId = created?.id || `${Date.now()}`;
+        const timeToUse = formData.time || '09:00';
+        if (selectedCategory === 'daily') {
+          await service.scheduleDailyTaskReminder({ id: createdId, title: formData.title, reminderTime: timeToUse });
+        } else if (selectedCategory === 'weekly') {
+          // Default to Friday if date selected corresponds to a weekday; else Friday (5)
+          const weekday = dueDate ? new Date(dueDate).getDay() : 5;
+          await service.scheduleWeeklyTaskReminder({ id: createdId, title: formData.title, reminderTime: timeToUse, weekday });
+        } else if (selectedCategory === 'monthly') {
+          const dayOfMonth = dueDate ? new Date(dueDate).getDate() : 1;
+          await service.scheduleMonthlyTaskReminder({ id: createdId, title: formData.title, reminderTime: timeToUse, dayOfMonth });
+        }
+      } catch (e) {
+        console.log('Scheduling task reminder failed:', e);
+      }
       setFilterStatus('');
       setFilterPriority('');
       setFormData({

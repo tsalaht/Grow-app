@@ -19,6 +19,7 @@ import { ArrowLeft, MoveHorizontal as MoreHorizontal, Save, Undo2, Redo2, Users,
 import { NoteCategory } from '@/services/api';
 import { useCreateNote } from '@/hooks/useApiData';
 import { ReminderModal } from '../Components/ReminderModal';
+import NotificationService from '@/services/NotificationService';
 import { TextFormattingModal}  from '../Components/TextFormattingModal';
 import { Note } from '@/types/Note';
 
@@ -162,6 +163,27 @@ export default function CreateNoteScreen() {
 
       const result = await createNote(payload);
       if (result?.success) {
+        // Schedule a smart note reminder only after creating the note
+        try {
+          const service = NotificationService.getInstance();
+          const createdNote: any = result.data;
+          if (reminder instanceof Date) {
+            await service.scheduleNotification({
+              id: `smart-note-${createdNote?.id || Date.now()}`,
+              title: '🧠 تذكير ملاحظة ذكية',
+              body: `تذكير: ${title.trim()}...`,
+              data: { type: 'smart_note', noteId: createdNote?.id, screen: 'smart-notes' },
+              trigger: { date: new Date(reminder), repeats: false },
+            } as any);
+          } else {
+            // Fallback: gentle reminder after 3 hours
+            if (createdNote?.id) {
+              await service.scheduleNoteReminder(title.trim(), createdNote.id);
+            }
+          }
+        } catch (e) {
+          console.log('Failed to schedule smart note reminder:', e);
+        }
         setTimeout(() => {
           setIsSaving(false);
           Alert.alert('تم الحفظ', 'تم حفظ الملاحظة بنجاح', [

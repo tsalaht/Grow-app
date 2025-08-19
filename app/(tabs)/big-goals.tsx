@@ -114,6 +114,17 @@ export default function BigGoalsScreen() {
     }
   }, [apiGoals]);
 
+  // Schedule weekly review only when user visits this screen
+  React.useEffect(() => {
+    (async () => {
+      try {
+        await notificationService.scheduleBigGoalsWeeklyReview();
+      } catch (e) {
+        console.log('Failed to schedule big goals weekly review', e);
+      }
+    })();
+  }, [notificationService]);
+
   const resetForm = () => {
     setNewGoal({
       type: '',

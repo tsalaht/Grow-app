@@ -34,11 +34,7 @@ function RootLayoutContent() {
         await notificationService.registerForPushNotifications();
         NotificationService.setupNotificationHandler();
         
-        // بدء الإشعارات الترحيبية المتكررة كل 30 ثانية
-        notificationService.startRecurringWelcomeNotifications();
-        console.log('تم بدء الإشعارات الترحيبية المتكررة بنجاح');
-        
-        // جدولة تذكير الراتب الشهري
+        // جدولة تذكير الراتب الشهري (لا يظهر إلا في بداية الشهر)
         await notificationService.scheduleMonthlyIncomeReminder();
         console.log('تم جدولة تذكير الراتب الشهري بنجاح');
         
@@ -57,26 +53,6 @@ function RootLayoutContent() {
           });
           console.log('تم جدولة تقرير نهاية الشهر بنجاح');
         }
-        
-        // جدولة إشعار تحفيز المهام اليومية
-        await notificationService.scheduleDailyTaskMotivation();
-        console.log('تم جدولة إشعار تحفيز المهام اليومية بنجاح');
-        
-        // جدولة إشعار تحفيز المهام الأسبوعية
-        await notificationService.scheduleWeeklyTaskMotivation();
-        console.log('تم جدولة إشعار تحفيز المهام الأسبوعية بنجاح');
-        
-        // جدولة إشعار تحفيز المهام الشهرية
-        await notificationService.scheduleMonthlyTaskMotivation();
-        console.log('تم جدولة إشعار تحفيز المهام الشهرية بنجاح');
-        
-        // جدولة مراجعة الأهداف الكبرى الأسبوعية
-        await notificationService.scheduleBigGoalsWeeklyReview();
-        console.log('تم جدولة مراجعة الأهداف الكبرى الأسبوعية بنجاح');
-        
-        // جدولة الإشعارات التحفيزية العامة
-        await notificationService.scheduleGeneralMotivation();
-        console.log('تم جدولة الإشعارات التحفيزية العامة بنجاح');
       } catch (error) {
         console.error('خطأ في تهيئة الإشعارات:', error);
         // Continue without notifications for now
