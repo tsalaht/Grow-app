@@ -37,14 +37,14 @@
     },
     "extra": {
       "eas": {
-        "projectId": "d41afab8-30fe-4671-8c25-41596b011ee9"
+        "projectId": "cbc271cc-5e26-421f-a6c6-c92898be0de2"
       },
       "router": {}
     },
-    "owner": "salaheddinet",
+    "owner": "salaheddinetabet00",
     "android": {
       "package": "com.ibrahim.grow",
-          "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json"
     }
   }
 }
