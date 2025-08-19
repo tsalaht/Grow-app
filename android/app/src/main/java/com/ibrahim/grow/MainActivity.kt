@@ -1,4 +1,4 @@
-package com.salaheddinet.grow
+package com.ibrahim.grow
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

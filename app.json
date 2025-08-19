@@ -1,18 +1,18 @@
 {
   "expo": {
     "name": "growUp",
-      "entryPoint": "./app/entry.js",
+    "entryPoint": "./app/entry.js",
     "slug": "grow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo2.png",
-"scheme": "com.salaheddinet.grow",
+    "scheme": "com.ibrahim.grow",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-     "splash": {
-      "image": "./assets/images/splash.png",  
-      "backgroundColor": "#12A150",         
-      "resizeMode": "contain"              
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "backgroundColor": "#12A150",
+      "resizeMode": "contain"
     },
     "ios": {
       "supportsTablet": true
@@ -36,13 +36,13 @@
     },
     "extra": {
       "eas": {
-        "projectId": "0324319c-f87d-464e-8ff2-bf735c0763d7"
+        "projectId": "d41afab8-30fe-4671-8c25-41596b011ee9"
       },
       "router": {}
     },
     "owner": "salaheddinet",
     "android": {
-      "package": "com.salaheddinet.grow"
+      "package": "com.ibrahim.grow"
     }
   }
 }

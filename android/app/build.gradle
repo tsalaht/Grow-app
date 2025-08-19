@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.salaheddinet.grow'
+    namespace 'com.ibrahim.grow'
     defaultConfig {
-        applicationId 'com.salaheddinet.grow'
+        applicationId 'com.ibrahim.grow'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

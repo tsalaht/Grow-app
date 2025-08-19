@@ -15,7 +15,8 @@ import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from
 import { useMyAppContext } from '@/context/MyAppContext';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-
+import { auth } from "@/firebaseConfig";
+import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 // Enable RTL for Arabic
 WebBrowser.maybeCompleteAuthSession();
 
@@ -31,59 +32,45 @@ export default function LoginScreen() {
 
   // Google OAuth configuration
   const [request, response, promptAsync] = Google.useAuthRequest({
-// 316613776863-n5po0gp8sh925567o9a0m1ceufae7t0k.apps.googleusercontent.com
-    androidClientId: '316613776863-rmj19rffjv4d5amkjubikd79iqnb4n4d.apps.googleusercontent.com', // Replace with your actual Android client ID
+
+    androidClientId: '623506187034-65ettpnbie7aares6f61s4harvi0vjde.apps.googleusercontent.com',
+     expoClientId: '623506187034-vt1nvdeqet4m18sd2m51apr3fmtgheof.apps.googleusercontent.com', 
+     responseType: "id_token", // مهم
+  scopes: ["openid", "profile", "email"], // مهم
   });
 
   // Handle Google OAuth response
-  React.useEffect(() => {
-    if (response?.type === 'success' && response.authentication) {
-      const { authentication } = response;
-      handleGoogleLogin(authentication.accessToken);
+React.useEffect(() => {
+  if (response?.type === "success") {
+    const { id_token } = response.params;
+    if (id_token) {
+      handleGoogleLogin(id_token);
+    } else {
+      Alert.alert("خطأ", "لم يتم استلام ID Token من Google");
     }
-  }, [response]);
+  }
+}, [response]);
 
-  const handleGoogleLogin = async (idToken: string) => {
-    setIsLoggingIn(true);
-    
-    try {
-      // For now, we'll use a mock FCM token
-      // In a real app, you'd get this from your notification service
-      const fcmToken = 'mock-fcm-token-' + Date.now();
-      
-      const success = await login(idToken, fcmToken);
-      
-      if (success) {
-        Alert.alert(
-          'تم تسجيل الدخول بنجاح',
-          'مرحباً بك في GrowUp!',
-          [
-            {
-              text: 'متابعة',
-              onPress: () => {
-                router.replace('/(tabs)' as any);
-              },
-            },
-          ]
-        );
-      } else {
-        Alert.alert(
-          'خطأ في تسجيل الدخول',
-          'حدث خطأ أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.',
-          [{ text: 'حسناً' }]
-        );
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert(
-        'خطأ في تسجيل الدخول',
-        'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.',
-        [{ text: 'حسناً' }]
-      );
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
+const handleGoogleLogin = async (idToken: string) => {
+  setIsLoggingIn(true);
+  try {
+    const credential = GoogleAuthProvider.credential(idToken);
+
+    const userCredential = await signInWithCredential(auth, credential);
+    const user = userCredential.user;
+
+    console.log("✅ Logged in Firebase user:", user.email);
+
+    Alert.alert("تم تسجيل الدخول بنجاح", `مرحباً ${user.displayName || "بك"}!`, [
+      { text: "متابعة", onPress: () => router.replace("/(tabs)" as any) },
+    ]);
+  } catch (error: any) {
+    console.error("Login error:", error);
+    Alert.alert("خطأ", error.message || "حدث خطأ غير متوقع.");
+  } finally {
+    setIsLoggingIn(false);
+  }
+};
 
   const handleGoogleLoginPress = async () => {
     try {
