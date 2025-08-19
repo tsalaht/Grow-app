@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "growUp",
-    "entryPoint": "./app/entry.js",
+    "entryPoint": "./app/entry.ts",
     "slug": "grow",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -29,7 +29,8 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true
@@ -42,7 +43,8 @@
     },
     "owner": "salaheddinet",
     "android": {
-      "package": "com.ibrahim.grow"
+      "package": "com.ibrahim.grow",
+          "googleServicesFile": "./google-services.json"
     }
   }
 }

@@ -31,12 +31,10 @@ export default function LoginScreen() {
   });
 
   // Google OAuth configuration
-  const [request, response, promptAsync] = Google.useAuthRequest({
-
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: '623506187034-vt1nvdeqet4m18sd2m51apr3fmtgheof.apps.googleusercontent.com',
     androidClientId: '623506187034-65ettpnbie7aares6f61s4harvi0vjde.apps.googleusercontent.com',
-     expoClientId: '623506187034-vt1nvdeqet4m18sd2m51apr3fmtgheof.apps.googleusercontent.com', 
-     responseType: "id_token", // مهم
-  scopes: ["openid", "profile", "email"], // مهم
+    scopes: ["openid", "profile", "email"],
   });
 
   // Handle Google OAuth response
@@ -126,20 +124,7 @@ const handleGoogleLogin = async (idToken: string) => {
               </View>
             </TouchableOpacity>
 
-            <Text style={styles.orText}>أو</Text>
-
-            {/* Disabled Login Options */}
-            <View style={styles.disabledSection}>
-              <View style={styles.disabledInput}>
-                <Text style={styles.disabledPlaceholder}>البريد الإلكتروني</Text>
-              </View>
-              <View style={styles.disabledInput}>
-                <Text style={styles.disabledPlaceholder}>كلمة المرور</Text>
-              </View>
-              <TouchableOpacity style={styles.disabledButton}>
-                <Text style={styles.disabledButtonText}>تسجيل الدخول</Text>
-              </TouchableOpacity>
-            </View>
+            
 
             {/* Terms and Privacy */}
             <View style={styles.termsSection}>

@@ -1,19 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API, TaskType, GoalType, NoteCategory } from '../services/api';
+import { useMyAppContext } from '@/context/MyAppContext';
 
 // Generic hook for managing API data
 export const useApiData = <T>(
   fetchFunction: () => Promise<{ success: boolean; data?: T; error?: string }>,
-  dependencies: any[] = []
+  dependencies: any[] = [],
+  requiresAuth: boolean = true
 ) => {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useMyAppContext();
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      if (requiresAuth && !isAuthenticated) {
+        setLoading(false);
+        return;
+      }
       const result = await fetchFunction();
       
       if (result.success && result.data) {
@@ -27,7 +34,7 @@ export const useApiData = <T>(
     } finally {
       setLoading(false);
     }
-  }, dependencies);
+  }, [isAuthenticated, requiresAuth, ...dependencies]);
 
   useEffect(() => {
     fetchData();
