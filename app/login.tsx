@@ -21,6 +21,8 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { AuthApi } from '../services/api/authApi';
 import NotificationService from '@/services/NotificationService';
+import { auth, GoogleAuthProvider } from '../firebaseConfig'; // Adjust the import path as needed
+import { signInWithCredential } from 'firebase/auth';
 
 // Enable RTL for Arabic
 WebBrowser.maybeCompleteAuthSession();
@@ -58,36 +60,45 @@ export default function LoginScreen() {
     }
   }, [response]);
 
-  const handleGoogleLogin = async (idToken: string) => {
-    setIsLoggingIn(true);
-    try {
-      // const credential = GoogleAuthProvider.credential(idToken);
+const handleGoogleLogin = async (idToken: string) => {
+  setIsLoggingIn(true);
+  try {
+    // Create Firebase credential with Google ID token
+    const credential = GoogleAuthProvider.credential(idToken);
 
-      // const userCredential = await signInWithCredential(auth, credential);
-      // const user = userCredential.user;
+    // Sign in to Firebase with the credential
+    const userCredential = await signInWithCredential(auth, credential);
+    const user = userCredential.user;
 
-      // console.log('✅ Logged in Firebase user:', user.email);
-      const fcmToken =
-        await NotificationService.getInstance().registerForPushNotifications();
+    console.log('✅ Logged in Firebase user:', user.email);
 
-      const loginResponse = await AuthApi.loginWithGoogle(
-        idToken,
-        fcmToken || ''
-      );
+    // Get FCM token for notifications
+    const fcmToken = await NotificationService.getInstance().registerForPushNotifications();
 
-      Alert.alert(
-        'تم تسجيل الدخول بنجاح',
-        `مرحباً 
-         'بك'}!`,
-        [{ text: 'متابعة', onPress: () => router.replace('/(tabs)' as any) }]
-      );
-    } catch (error: any) {
-      console.error('Login error:', error);
-      Alert.alert('خطأ', error.message || 'حدث خطأ غير متوقع.');
-    } finally {
-      setIsLoggingIn(false);
+    // Call your backend API to handle Google login
+    const loginResponse = await AuthApi.loginWithGoogle(idToken, fcmToken || '');
+
+    // Show success alert and navigate to the tabs screen
+    Alert.alert(
+      'تم تسجيل الدخول بنجاح',
+      `مرحباً ${user.displayName || 'بك'}!`,
+      [{ text: 'متابعة', onPress: () => router.replace('/(tabs)' as any) }]
+    );
+  } catch (error: any) {
+    console.error('Login error:', error);
+    let errorMessage = 'حدث خطأ غير متوقع.';
+    if (error.code === 'auth/invalid-credential') {
+      errorMessage = 'بيانات تسجيل الدخول غير صالحة. حاول مرة أخرى.';
+    } else if (error.code === 'auth/network-request-failed') {
+      errorMessage = 'فشل الاتصال بالإنترنت. تحقق من اتصالك.';
+    } else if (error.message) {
+      errorMessage = error.message;
     }
-  };
+    Alert.alert('خطأ', errorMessage);
+  } finally {
+    setIsLoggingIn(false);
+  }
+};
 
   const handleGoogleLoginPress = async () => {
     try {
