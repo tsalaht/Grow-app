@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "612098820148-3820d1v6e7kd93cvi2d0ids0ji0bjpps.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ibrahim.grow",
+            "certificate_hash": "4d2d0b5ac5d5ccec88c6df27c986231ab3d247e6"
+          }
+        },
+        {
           "client_id": "612098820148-gnqvhdljuv5824dcdh6oihvh4uu8gpct.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
