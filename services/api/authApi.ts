@@ -6,17 +6,26 @@ export class AuthApi {
   /**
    * Login with Google ID token
    */
-  static async loginWithGoogle(idToken: string, fcmToken: string): Promise<ApiResponse<LoginResponse>> {
+  static async loginWithGoogle(
+    idToken: string,
+    fcmToken: string
+  ): Promise<ApiResponse<LoginResponse>> {
     try {
-      const response = await axiosInstance.post<ApiResponse<LoginResponse>>('/auth-google', {
-        idToken,
-        fcmToken,
-      });
+      const response = await axiosInstance.post<ApiResponse<LoginResponse>>(
+        '/auth-google',
+        {
+          idToken,
+          fcmToken,
+        }
+      );
 
       if (response.data.success && response.data.data) {
         // Store token and user data
         await AsyncStorage.setItem('authToken', response.data.data.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(response.data.data.user));
+        await AsyncStorage.setItem(
+          'userData',
+          JSON.stringify(response.data.data.user)
+        );
       }
 
       return response.data;
@@ -35,15 +44,15 @@ export class AuthApi {
   static async logout(): Promise<ApiResponse> {
     try {
       const response = await axiosInstance.post<ApiResponse>('/logout');
-      
+
       // Clear local storage regardless of server response
       await AsyncStorage.removeItem('authToken');
       await AsyncStorage.removeItem('userData');
-      
+
       return response.data;
     } catch (error: any) {
       console.error('Logout error:', error);
-      
+
       // Clear local storage even if server request fails
       try {
         await AsyncStorage.removeItem('authToken');
@@ -51,7 +60,7 @@ export class AuthApi {
       } catch (storageError) {
         console.error('Error clearing storage:', storageError);
       }
-      
+
       return {
         success: false,
         error: error.response?.data?.error || error.message || 'Logout failed',

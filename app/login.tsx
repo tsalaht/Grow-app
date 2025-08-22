@@ -6,17 +6,22 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
-  I18nManager,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Sprout } from 'lucide-react-native';
-import { useFonts, Tajawal_400Regular, Tajawal_700Bold, Tajawal_500Medium } from '@expo-google-fonts/tajawal';
+import {
+  useFonts,
+  Tajawal_400Regular,
+  Tajawal_700Bold,
+  Tajawal_500Medium,
+} from '@expo-google-fonts/tajawal';
 import { useMyAppContext } from '@/context/MyAppContext';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { auth } from "@/firebaseConfig";
-import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { AuthApi } from '../services/api/authApi';
+import NotificationService from '@/services/NotificationService';
+
 // Enable RTL for Arabic
 WebBrowser.maybeCompleteAuthSession();
 
@@ -32,43 +37,57 @@ export default function LoginScreen() {
 
   // Google OAuth configuration
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '623506187034-vt1nvdeqet4m18sd2m51apr3fmtgheof.apps.googleusercontent.com',
-    androidClientId: '623506187034-65ettpnbie7aares6f61s4harvi0vjde.apps.googleusercontent.com',
-    scopes: ["openid", "profile", "email"],
+    clientId:
+      '612098820148-p8vr2kcg1ir3idtfols8u1o5lcrlut5j.apps.googleusercontent.com',
+    androidClientId:
+      '612098820148-gnqvhdljuv5824dcdh6oihvh4uu8gpct.apps.googleusercontent.com',
+    scopes: ['openid', 'profile', 'email'],
   });
 
   // Handle Google OAuth response
-React.useEffect(() => {
-  if (response?.type === "success") {
-    const { id_token } = response.params;
-    if (id_token) {
-      handleGoogleLogin(id_token);
-    } else {
-      Alert.alert("خطأ", "لم يتم استلام ID Token من Google");
+  React.useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      console.log('✅ ID Token from Google:', id_token);
+
+      if (id_token) {
+        handleGoogleLogin(id_token);
+      } else {
+        Alert.alert('خطأ', 'لم يتم استلام ID Token من Google');
+      }
     }
-  }
-}, [response]);
+  }, [response]);
 
-const handleGoogleLogin = async (idToken: string) => {
-  setIsLoggingIn(true);
-  try {
-    const credential = GoogleAuthProvider.credential(idToken);
+  const handleGoogleLogin = async (idToken: string) => {
+    setIsLoggingIn(true);
+    try {
+      // const credential = GoogleAuthProvider.credential(idToken);
 
-    const userCredential = await signInWithCredential(auth, credential);
-    const user = userCredential.user;
+      // const userCredential = await signInWithCredential(auth, credential);
+      // const user = userCredential.user;
 
-    console.log("✅ Logged in Firebase user:", user.email);
+      // console.log('✅ Logged in Firebase user:', user.email);
+      const fcmToken =
+        await NotificationService.getInstance().registerForPushNotifications();
 
-    Alert.alert("تم تسجيل الدخول بنجاح", `مرحباً ${user.displayName || "بك"}!`, [
-      { text: "متابعة", onPress: () => router.replace("/(tabs)" as any) },
-    ]);
-  } catch (error: any) {
-    console.error("Login error:", error);
-    Alert.alert("خطأ", error.message || "حدث خطأ غير متوقع.");
-  } finally {
-    setIsLoggingIn(false);
-  }
-};
+      const loginResponse = await AuthApi.loginWithGoogle(
+        idToken,
+        fcmToken || ''
+      );
+
+      Alert.alert(
+        'تم تسجيل الدخول بنجاح',
+        `مرحباً 
+         'بك'}!`,
+        [{ text: 'متابعة', onPress: () => router.replace('/(tabs)' as any) }]
+      );
+    } catch (error: any) {
+      console.error('Login error:', error);
+      Alert.alert('خطأ', error.message || 'حدث خطأ غير متوقع.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
 
   const handleGoogleLoginPress = async () => {
     try {
@@ -108,9 +127,12 @@ const handleGoogleLogin = async (idToken: string) => {
           {/* Login Card */}
           <View style={styles.loginCard}>
             <Text style={styles.loginTitle}>تسجيل الدخول</Text>
-            
+
             <TouchableOpacity
-              style={[styles.googleButton, (isLoading || isLoggingIn) && styles.googleButtonDisabled]}
+              style={[
+                styles.googleButton,
+                (isLoading || isLoggingIn) && styles.googleButtonDisabled,
+              ]}
               onPress={handleGoogleLoginPress}
               disabled={isLoading || isLoggingIn}
             >
@@ -119,19 +141,18 @@ const handleGoogleLogin = async (idToken: string) => {
                   <Text style={styles.googleIconText}>G</Text>
                 </View>
                 <Text style={styles.googleButtonText}>
-                  {isLoading || isLoggingIn ? 'جاري تسجيل الدخول...' : 'المواصلة باستخدام Google'}
+                  {isLoading || isLoggingIn
+                    ? 'جاري تسجيل الدخول...'
+                    : 'المواصلة باستخدام Google'}
                 </Text>
               </View>
             </TouchableOpacity>
-
-            
 
             {/* Terms and Privacy */}
             <View style={styles.termsSection}>
               <Text style={styles.termsText}>
                 بالاستمرار، أنت توافق على{' '}
-                <Text style={styles.linkText}>شروط الاستخدام</Text>
-                {' '}و{' '}
+                <Text style={styles.linkText}>شروط الاستخدام</Text> و{' '}
                 <Text style={styles.linkText}>سياسة الخصوصية</Text>
               </Text>
             </View>
