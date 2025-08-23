@@ -3,7 +3,7 @@
     "name": "growUp",
     "entryPoint": "./app/entry.ts",
     "slug": "grow",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/logo2.png",
     "scheme": "com.ibrahim.grow",
@@ -44,7 +44,8 @@
     "owner": "salaheddinetabet00",
     "android": {
       "package": "com.ibrahim.grow",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+            "versionCode": 2
     }
   }
 }
