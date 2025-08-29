@@ -4,7 +4,6 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath 'com.google.gms:google-services:4.4.1'
     classpath('com.android.tools.build:gradle')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
@@ -106,9 +105,4 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-    // Add Appodeal dependencies explicitly (in case autolinking fails)
-    implementation 'com.appodeal.ads.sdk:core:3.8.1'
-    implementation 'com.appodeal.ads.sdk.networks:iab:3.8.1.0'
 }
-
-apply plugin: 'com.google.gms.google-services'
