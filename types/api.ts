@@ -7,21 +7,112 @@ export interface ApiResponse<T = any> {
 }
 
 // Auth Types
+// Request types
 export interface LoginRequest {
-  idToken: string;
-  fcmToken: string;
+  email: string;
+  password: string;
+  fcmToken?: string; // Optional as per API docs
 }
 
-export interface LoginResponse {
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+  fcmToken?: string; // Optional
+}
+
+// Additional request types for other endpoints
+export interface ActivateRequest {
+  activationToken: string;
+  activationCode: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  resetCode: string;
+  newPassword: string;
+}
+
+
+
+export interface RegisterResponse {
+  success: boolean;
+  message: string;
+  activationToken: string;
+}
+
+export interface ActivateResponse {
+  message: string;
   token: string;
   user: {
     id: string;
-    email: string;
     name: string;
-    avatar?: string;
+    email: string;
+    emailVerified: boolean;
+    notificationSettings?: any[]; // Array of settings, define further if needed
   };
 }
 
+export interface LoginResponse {
+  message: string;
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    fcmToken?: string;
+    lastLoginAt: string; // ISO date string
+  };
+}
+
+export interface LogoutResponse {
+  message: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+  token: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
+export interface GetUserResponse {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    emailVerified: boolean;
+    fcmToken?: string;
+    lastLoginAt?: string;
+  };
+}
+
+export interface MarkAllReadResponse {
+  success: boolean;
+  message: string;
+}
+
+// User model (from schema, for reference if needed in app state)
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  password?: string; // Never expose this
+  image?: string;
+  createdAt: string;
+  updatedAt: string;
+  fcmToken?: string;
+  firebaseUid?: string;
+  lastLoginAt?: string;
+  emailVerified: boolean;
+  // Relations like tasks, incomes, etc., can be added if integrating other modules
+}
 // Finance Types
 export interface IncomeRequest {
   month: string; // Format: "YYYY-MM"

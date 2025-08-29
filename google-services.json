@@ -7,26 +7,18 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:612098820148:android:0dd962ab8da084499c6261",
+        "mobilesdk_app_id": "1:612098820148:android:0076f7cf3d709e8a9c6261",
         "android_client_info": {
           "package_name": "com.ibrahim.grow"
         }
       },
       "oauth_client": [
         {
-          "client_id": "612098820148-3820d1v6e7kd93cvi2d0ids0ji0bjpps.apps.googleusercontent.com",
+          "client_id": "612098820148-dvpi00tc6m9fcotm58hbd6hf41fo3n73.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.ibrahim.grow",
-            "certificate_hash": "4d2d0b5ac5d5ccec88c6df27c986231ab3d247e6"
-          }
-        },
-        {
-          "client_id": "612098820148-gnqvhdljuv5824dcdh6oihvh4uu8gpct.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.ibrahim.grow",
-            "certificate_hash": "12321a71a8a1c29da0272b2749ae491baf49329f"
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
           }
         },
         {

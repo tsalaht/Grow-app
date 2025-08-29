@@ -15,7 +15,8 @@
       "resizeMode": "contain"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ibrahim.grow"
     },
     "notification": {
       "icon": "./assets/images/logo2.png",
@@ -30,7 +31,8 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
@@ -45,7 +47,7 @@
     "android": {
       "package": "com.ibrahim.grow",
       "googleServicesFile": "./google-services.json",
-            "versionCode": 2
+      "versionCode": 2
     }
   }
 }

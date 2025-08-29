@@ -9,9 +9,17 @@ const firebaseConfig = {
   storageBucket: 'growupe-83565.firebasestorage.app',
   messagingSenderId: '612098820148',
   appId: '1:612098820148:android:0dd962ab8da084499c6261',
+  // iOS app ID - add this if you have it
+  // iosAppId: '1:612098820148:ios:YOUR_IOS_APP_ID',
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-export { auth, GoogleAuthProvider };
+// Configure Google Auth Provider with proper scopes
+const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('openid');
+googleProvider.addScope('profile');
+googleProvider.addScope('email');
+
+export { auth, googleProvider as GoogleAuthProvider };

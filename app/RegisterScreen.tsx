@@ -21,11 +21,13 @@ import { useMyAppContext } from '@/context/MyAppContext';
 import { AuthApi } from '../services/api/authApi';
 import NotificationService from '@/services/NotificationService';
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
   const { login, isLoading } = useMyAppContext();
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const [fontsLoaded] = useFonts({
     Tajawal_400Regular,
@@ -33,10 +35,24 @@ export default function LoginScreen() {
     Tajawal_500Medium,
   });
 
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
+  const handleRegister = async () => {
+    setIsRegistering(true);
     try {
-      console.log('Starting login attempt with email:', email);
+      console.log('Starting register attempt with email:', email);
+
+      // Validate inputs
+      if (!name || !email || !password || !confirmPassword) {
+        throw new Error('يرجى ملء جميع الحقول');
+      }
+      if (password !== confirmPassword) {
+        throw new Error('كلمات المرور غير متطابقة');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new Error('البريد الإلكتروني غير صالح');
+      }
+      if (password.length < 6) {
+        throw new Error('كلمة المرور يجب أن تكون 6 أحرف على الأقل');
+      }
 
       // Optional: Get FCM token
       let fcmToken = '';
@@ -49,50 +65,39 @@ export default function LoginScreen() {
       }
 
       // Actual API call
-      const loginResponse = await AuthApi.login({
+      const registerResponse = await AuthApi.register({
+        name,
         email,
         password,
         fcmToken,
       });
 
-      console.log('API login response:', loginResponse);
+      console.log('API register response:', registerResponse);
 
-      if (loginResponse.token) { // Check for token at root level
-        Alert.alert(
-          'تم تسجيل الدخول بنجاح',
-          'مرحباً بك!',
-          [{ text: 'متابعة', onPress: () => router.replace('/(tabs)' as any) }]
-        );
+      if (registerResponse.success && registerResponse.activationToken) {
+        router.push({
+          pathname: '/ActivateScreen',
+          params: { activationToken: registerResponse.activationToken },
+        });
       } else {
-        throw new Error(loginResponse.error || 'Login failed');
+        throw new Error(registerResponse.error || 'Registration failed');
       }
     } catch (error: any) {
-      console.error('❌ Login error:', error);
+      console.error('❌ Registration error:', error);
       let errorMessage = 'حدث خطأ غير متوقع.';
       
-      if (error.message.includes('Invalid credentials')) {
-        errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحين.';
-      } else if (error.message) {
+      if (error.message) {
         errorMessage = error.message;
       }
       
-      Alert.alert('خطأ في تسجيل الدخول', errorMessage);
+      Alert.alert('خطأ في إنشاء الحساب', errorMessage);
     } finally {
-      setIsLoggingIn(false);
+      setIsRegistering(false);
     }
   };
 
-  const handleForgotPassword = () => {
-    // TODO: Implement forgot password flow
-    // For now, show alert; in full implementation, navigate to forgot password screen
-    Alert.alert('نسيت كلمة المرور', 'سيتم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني.');
-  };
-
-  const handleSignUp = () => {
-    // TODO: Navigate to sign up screen
-    // For now, show alert; in full implementation, router.push('/signup')
-    // Alert.alert('إنشاء حساب', 'سيتم توجيهك إلى شاشة إنشاء حساب جديد.');
-    router.push('/RegisterScreen');
+  const handleLoginRedirect = () => {
+    router.push('/login');
   };
 
   if (!fontsLoaded) {
@@ -114,14 +119,22 @@ export default function LoginScreen() {
                 <Sprout size={24} color="#FFFFFF" />
               </View>
             </View>
-            <Text style={styles.subtitle}>نمو وتطوير ذاتي</Text>
+            <Text style={styles.subtitle}>نمو وتفعيل ذاتي</Text>
           </View>
 
-          {/* Login Card */}
-          <View style={styles.loginCard}>
-            <Text style={styles.loginTitle}>تسجيل الدخول</Text>
+          {/* Register Card */}
+          <View style={styles.registerCard}>
+            <Text style={styles.registerTitle}>إنشاء حساب جديد</Text>
 
-            {/* Email Input */}
+            <TextInput
+              style={styles.input}
+              placeholder="الاسم"
+              placeholderTextColor="#9CA3AF"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              textAlign="right"
+            />
             <TextInput
               style={styles.input}
               placeholder="البريد الإلكتروني"
@@ -132,8 +145,6 @@ export default function LoginScreen() {
               autoCapitalize="none"
               textAlign="right"
             />
-
-            {/* Password Input */}
             <TextInput
               style={styles.input}
               placeholder="كلمة المرور"
@@ -143,31 +154,33 @@ export default function LoginScreen() {
               secureTextEntry
               textAlign="right"
             />
-
-            {/* Login Button */}
+            <TextInput
+              style={styles.input}
+              placeholder="تأكيد كلمة المرور"
+              placeholderTextColor="#9CA3AF"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              textAlign="right"
+            />
             <TouchableOpacity
               style={[
-                styles.loginButton,
-                (isLoading || isLoggingIn) && styles.buttonDisabled,
+                styles.registerButton,
+                (isLoading || isRegistering) && styles.buttonDisabled,
               ]}
-              onPress={handleLogin}
-              disabled={isLoading || isLoggingIn}
+              onPress={handleRegister}
+              disabled={isLoading || isRegistering}
             >
-              <Text style={styles.loginButtonText}>
-                {isLoading || isLoggingIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
+              <Text style={styles.registerButtonText}>
+                {isLoading || isRegistering ? 'جاري إنشاء الحساب...' : 'إنشاء الحساب'}
               </Text>
             </TouchableOpacity>
 
-            {/* Forgot Password */}
-            <TouchableOpacity onPress={handleForgotPassword}>
-              <Text style={styles.forgotText}>هل نسيت كلمة المرور؟</Text>
-            </TouchableOpacity>
-
-            {/* Sign Up */}
-            <View style={styles.signUpSection}>
-              <Text style={styles.signUpText}>ليس لديك حساب؟ </Text>
-              <TouchableOpacity onPress={handleSignUp}>
-                <Text style={styles.linkText}>إنشاء حساب جديد</Text>
+            {/* Login Redirect */}
+            <View style={styles.loginSection}>
+              <Text style={styles.loginText}>لديك حساب بالفعل؟ </Text>
+              <TouchableOpacity onPress={handleLoginRedirect}>
+                <Text style={styles.linkText}>تسجيل الدخول</Text>
               </TouchableOpacity>
             </View>
 
@@ -228,7 +241,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_400Regular',
     color: '#095028',
   },
-  loginCard: {
+  registerCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 24,
@@ -239,7 +252,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     marginBottom: 30,
   },
-  loginTitle: {
+  registerTitle: {
     fontSize: 24,
     fontFamily: 'Tajawal_700Bold',
     color: '#1F2937',
@@ -258,14 +271,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Tajawal_400Regular',
     color: '#1F2937',
   },
-  loginButton: {
+  registerButton: {
     backgroundColor: '#095028',
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
   },
-  loginButtonText: {
+  registerButtonText: {
     fontSize: 16,
     fontFamily: 'Tajawal_500Medium',
     color: '#FFFFFF',
@@ -273,19 +286,12 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
-  forgotText: {
-    fontSize: 14,
-    fontFamily: 'Tajawal_400Regular',
-    color: '#3B82F6',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  signUpSection: {
+  loginSection: {
     flexDirection: 'row-reverse',
     justifyContent: 'center',
     marginBottom: 24,
   },
-  signUpText: {
+  loginText: {
     fontSize: 14,
     fontFamily: 'Tajawal_400Regular',
     color: '#6B7280',

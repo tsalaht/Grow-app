@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AuthApi, API } from '../services/api';
+import { AuthApi } from '../services/api';
 
 type MyAppContextType = {
   username: string;
@@ -15,7 +15,7 @@ type MyAppContextType = {
   // New authentication properties
   isAuthenticated: boolean;
   userData: any;
-  login: (idToken: string, fcmToken: string) => Promise<boolean>;
+  login: (email: string, password: string, fcmToken: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuthStatus: () => Promise<void>;
 };
@@ -65,20 +65,29 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Login function
-  const login = async (idToken: string, fcmToken: string): Promise<boolean> => {
+  const login = async (email: string, password: string, fcmToken: string): Promise<boolean> => {
     try {
       setIsLoading(true);
-      const result = await AuthApi.loginWithGoogle(idToken, fcmToken);
+      const result = await AuthApi.login({ email, password, fcmToken });
       
-      if (result.success && result.data) {
+      console.log('API login response in context:', result); // Debug log
+
+      if (result.token) { // Check for token at root level
         setIsAuthenticated(true);
-        setUserData(result.data.user);
-        setUsername(result.data.user.name || 'زائر');
+        setUserData(result.data?.user); // Access user from result.data?.user
+        setUsername(result.data?.user?.name || 'زائر'); // Set username from result.data.user.name
         setHasCompletedLogin(true);
-        console.log('✅ Login successful:', result.data.user);
+        console.log('✅ Login successful:', result.data?.user);
+
+        // Update userData and username based on response
+        if (result.data && result.data.user) {
+          setUserData({ ...result.data.user, name: result.data.user.name });
+          setUsername(result.data.user.name);
+        }
+
         return true;
       } else {
-        console.error('❌ Login failed:', result.error);
+        console.error('❌ Login failed:', result.error || 'No token received');
         return false;
       }
     } catch (error) {

@@ -86,13 +86,7 @@ export default function ProfileScreen() {
   };
 
   const profileOptions: ProfileOption[] = [
-    // {
-    //   id: 'account',
-    //   title: 'إعدادات الحساب',
-    //   subtitle: 'تحديث المعلومات الشخصية',
-    //   icon: <User size={20} color="#095028" />,
-    //   action: () => Alert.alert('إعدادات الحساب', 'قريباً - إعدادات الحساب'),
-    // },
+
     {
       id: 'notifications',
       title: 'الإشعارات',
