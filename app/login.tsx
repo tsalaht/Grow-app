@@ -18,7 +18,6 @@ import {
   Tajawal_500Medium,
 } from '@expo-google-fonts/tajawal';
 import { useMyAppContext } from '@/context/MyAppContext';
-import { AuthApi } from '../services/api/authApi';
 import NotificationService from '@/services/NotificationService';
 
 export default function LoginScreen() {
@@ -34,48 +33,49 @@ export default function LoginScreen() {
   });
 
   const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('خطأ', 'يرجى إدخال البريد الإلكتروني وكلمة المرور');
+      return;
+    }
+
     setIsLoggingIn(true);
     try {
       console.log('Starting login attempt with email:', email);
 
-      // Optional: Get FCM token
+      // Get FCM token for notifications
       let fcmToken = '';
       try {
-        const fcmResult = await NotificationService.getInstance().registerForPushNotifications();
+        const fcmResult =
+          await NotificationService.getInstance().registerForPushNotifications();
         fcmToken = fcmResult || '';
         console.log('FCM token obtained:', fcmToken);
       } catch (fcmError) {
         console.warn('⚠️ FCM token error (continuing without it):', fcmError);
       }
 
-      // Actual API call
-      const loginResponse = await AuthApi.login({
-        email,
-        password,
-        fcmToken,
-      });
+      // Use context login function
+      const loginSuccess = await login(email, password, fcmToken);
 
-      console.log('API login response:', loginResponse);
-
-      if (loginResponse.token) { // Check for token at root level
-        Alert.alert(
-          'تم تسجيل الدخول بنجاح',
-          'مرحباً بك!',
-          [{ text: 'متابعة', onPress: () => router.replace('/(tabs)' as any) }]
-        );
+      if (loginSuccess) {
+        console.log('✅ Login successful, navigating to main app');
+        // The context will handle the navigation automatically
+        // No need to manually navigate here
       } else {
-        throw new Error(loginResponse.error || 'Login failed');
+        Alert.alert(
+          'خطأ في تسجيل الدخول',
+          'البريد الإلكتروني أو كلمة المرور غير صحيحين'
+        );
       }
     } catch (error: any) {
       console.error('❌ Login error:', error);
       let errorMessage = 'حدث خطأ غير متوقع.';
-      
-      if (error.message.includes('Invalid credentials')) {
+
+      if (error.message && error.message.includes('Invalid credentials')) {
         errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحين.';
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       Alert.alert('خطأ في تسجيل الدخول', errorMessage);
     } finally {
       setIsLoggingIn(false);
@@ -85,7 +85,10 @@ export default function LoginScreen() {
   const handleForgotPassword = () => {
     // TODO: Implement forgot password flow
     // For now, show alert; in full implementation, navigate to forgot password screen
-    Alert.alert('نسيت كلمة المرور', 'سيتم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني.');
+    Alert.alert(
+      'نسيت كلمة المرور',
+      'سيتم إرسال رابط إعادة التعيين إلى بريدك الإلكتروني.'
+    );
   };
 
   const handleSignUp = () => {
@@ -154,7 +157,9 @@ export default function LoginScreen() {
               disabled={isLoading || isLoggingIn}
             >
               <Text style={styles.loginButtonText}>
-                {isLoading || isLoggingIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
+                {isLoading || isLoggingIn
+                  ? 'جاري تسجيل الدخول...'
+                  : 'تسجيل الدخول'}
               </Text>
             </TouchableOpacity>
 

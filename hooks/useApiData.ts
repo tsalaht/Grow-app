@@ -17,20 +17,28 @@ export const useApiData = <T>(
     try {
       setLoading(true);
       setError(null);
+      
       if (requiresAuth && !isAuthenticated) {
+        console.log('🔐 API call skipped - user not authenticated');
         setLoading(false);
         return;
       }
+      
+      console.log('🔄 Fetching data...', { requiresAuth, isAuthenticated });
       const result = await fetchFunction();
       
       if (result.success && result.data) {
+        console.log('✅ Data fetched successfully:', result.data);
         setData(result.data);
       } else {
-        setError(result.error || 'حدث خطأ غير متوقع');
+        const errorMsg = result.error || 'حدث خطأ غير متوقع';
+        console.error('❌ API call failed:', errorMsg);
+        setError(errorMsg);
       }
     } catch (err) {
-      setError('حدث خطأ في الاتصال');
-      console.error('API Error:', err);
+      const errorMsg = 'حدث خطأ في الاتصال';
+      console.error('💥 API Error:', err);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -41,6 +49,7 @@ export const useApiData = <T>(
   }, [fetchData]);
 
   const refetch = () => {
+    console.log('🔄 Refetching data...');
     fetchData();
   };
 

@@ -99,7 +99,7 @@ export class NotesApi {
   }
 
   /**
-   * Toggle note pin status
+   * Toggle pin note
    */
   static async togglePinNote(id: string): Promise<ApiResponse<NoteResponse>> {
     try {

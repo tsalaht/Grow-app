@@ -264,7 +264,26 @@ export class AuthApi {
   static async isAuthenticated(): Promise<boolean> {
     try {
       const token = await AsyncStorage.getItem('authToken');
-      return !!token;
+      if (!token) {
+        return false;
+      }
+      
+      // Try to validate token with server (optional - can be expensive)
+      try {
+        const response = await axiosInstance.get('/get-user');
+        return response.status === 200;
+      } catch (error: any) {
+        // If server returns 401, token is invalid
+        if (error.response?.status === 401) {
+          console.log('🔐 Token validation failed, clearing invalid token');
+          await AsyncStorage.removeItem('authToken');
+          await AsyncStorage.removeItem('userData');
+          return false;
+        }
+        // For other errors, assume token is still valid
+        console.log('⚠️ Token validation error, assuming valid:', error.message);
+        return true;
+      }
     } catch (error) {
       console.error('Error checking authentication:', error);
       return false;

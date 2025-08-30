@@ -85,7 +85,7 @@ export class FinanceApi {
    */
   static async addExpense(expense: Omit<Expense, 'id'>): Promise<ApiResponse<Expense>> {
     try {
-      const response = await axiosInstance.post<ApiResponse<Expense>>('/add-expense', expense);
+      const response = await axiosInstance.post<ApiResponse<Expense>>('/add-expenses', expense);
       return response.data;
     } catch (error: any) {
       console.error('Add expense error:', error);
@@ -101,7 +101,7 @@ export class FinanceApi {
    */
   static async getAllExpenses(): Promise<ApiResponse<Expense[]>> {
     try {
-      const response = await axiosInstance.get<ApiResponse<Expense[]>>('/get-all-expenses');
+      const response = await axiosInstance.get<ApiResponse<Expense[]>>('/all-expenses');
       return response.data;
     } catch (error: any) {
       console.error('Get all expenses error:', error);
@@ -117,7 +117,7 @@ export class FinanceApi {
    */
   static async getCurrentMonthExpenses(): Promise<ApiResponse<Expense[]>> {
     try {
-      const response = await axiosInstance.get<ApiResponse<Expense[]>>('/get-current-month-expenses');
+      const response = await axiosInstance.get<ApiResponse<Expense[]>>('/expenses/current-month');
       return response.data;
     } catch (error: any) {
       console.error('Get current month expenses error:', error);
@@ -133,7 +133,7 @@ export class FinanceApi {
    */
   static async updateExpense(id: string, data: Partial<Expense>): Promise<ApiResponse<Expense>> {
     try {
-      const response = await axiosInstance.put<ApiResponse<Expense>>(`/update-expense/${id}`, data);
+      const response = await axiosInstance.put<ApiResponse<Expense>>(`/update-expenses/${id}`, data);
       return response.data;
     } catch (error: any) {
       console.error('Update expense error:', error);
@@ -149,7 +149,7 @@ export class FinanceApi {
    */
   static async deleteExpense(id: string): Promise<ApiResponse> {
     try {
-      const response = await axiosInstance.delete<ApiResponse>(`/delete-expense/${id}`);
+      const response = await axiosInstance.delete<ApiResponse>(`/delete-expenses/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Delete expense error:', error);
@@ -214,7 +214,7 @@ export class FinanceApi {
    */
   static async deleteObligation(id: string): Promise<ApiResponse> {
     try {
-      const response = await axiosInstance.delete<ApiResponse>(`/delete-obligation/${id}`);
+      const response = await axiosInstance.delete<ApiResponse>(`/delete-obligations/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Delete obligation error:', error);

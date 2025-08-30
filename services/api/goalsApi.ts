@@ -103,9 +103,9 @@ export class GoalsApi {
   /**
    * Get goal progress
    */
-  static async getGoalProgress(id: string): Promise<ApiResponse<{ progress: number; remaining: number }>> {
+  static async getGoalProgress(id: string): Promise<ApiResponse<GoalResponse>> {
     try {
-      const response = await axiosInstance.get<ApiResponse<{ progress: number; remaining: number }>>(`/goal-progress/${id}`);
+      const response = await axiosInstance.get<ApiResponse<GoalResponse>>(`/goal-progress/${id}`);
       return response.data;
     } catch (error: any) {
       console.error('Get goal progress error:', error);

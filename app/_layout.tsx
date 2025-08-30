@@ -10,81 +10,90 @@ import * as Updates from 'expo-updates';
 // 316613776863-n5po0gp8sh925567o9a0m1ceufae7t0k.apps.googleusercontent.com
 
 function RootLayoutContent() {
-  const { hasCompletedOnboarding, hasCompletedLogin, isLoading } = useMyAppContext();
+  const { hasCompletedOnboarding, isAuthenticated, isLoading } =
+    useMyAppContext();
   if (I18nManager.isRTL) {
-  I18nManager.allowRTL(false);
-  I18nManager.forceRTL(false);
-  // Reload so changes apply immediately on first run
-  if (Updates?.reloadAsync) {
-    Updates.reloadAsync();
+    I18nManager.allowRTL(false);
+    I18nManager.forceRTL(false);
+    // Reload so changes apply immediately on first run
+    if (Updates?.reloadAsync) {
+      Updates.reloadAsync();
+    }
   }
-}
   const router = useRouter();
 
-  console.log('App State - Onboarding:', hasCompletedOnboarding, 'Login:', hasCompletedLogin);
-
+  console.log(
+    'App State - Onboarding:',
+    hasCompletedOnboarding,
+    'Authenticated:',
+    isAuthenticated
+  );
 
   useFrameworkReady();
 
+  // Initialize notifications only after user is authenticated
   useEffect(() => {
-    // تهيئة نظام الإشعارات عند بدء التطبيق
-    const initNotifications = async () => {
-      try {
-        const notificationService = NotificationService.getInstance();
-        await notificationService.registerForPushNotifications();
-        NotificationService.setupNotificationHandler();
-        
-        // جدولة تذكير الراتب الشهري (لا يظهر إلا في بداية الشهر)
-        await notificationService.scheduleMonthlyIncomeReminder();
-        console.log('تم جدولة تذكير الراتب الشهري بنجاح');
-        
-        // جدولة تقرير نهاية الشهر (آخر يوم من الشهر)
-        const now = new Date();
-        const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 20, 0, 0); // 8 PM
-        
-        if (now.getDate() === lastDayOfMonth.getDate()) {
-          // إذا كان اليوم هو آخر يوم من الشهر، جدولة تقرير نهاية الشهر
-          const endOfMonthReport = await notificationService.scheduleNotification({
-            id: 'end-of-month-report-scheduled',
-            title: '📊 تقرير نهاية الشهر',
-            body: 'حان وقت مراجعة أدائك المالي لهذا الشهر! اضغط لإنشاء التقرير',
-            data: { type: 'end_of_month_reminder', screen: 'finance' },
-            trigger: { date: lastDayOfMonth, repeats: false },
-          });
-          console.log('تم جدولة تقرير نهاية الشهر بنجاح');
+    if (isAuthenticated && !isLoading) {
+      const initNotifications = async () => {
+        try {
+          const notificationService = NotificationService.getInstance();
+          await notificationService.registerForPushNotifications();
+          NotificationService.setupNotificationHandler();
+
+          // جدولة تذكير الراتب الشهري (لا يظهر إلا في بداية الشهر)
+          await notificationService.scheduleMonthlyIncomeReminder();
+          console.log('تم جدولة تذكير الراتب الشهري بنجاح');
+
+          // جدولة تقرير نهاية الشهر (آخر يوم من الشهر)
+          const now = new Date();
+          const lastDayOfMonth = new Date(
+            now.getFullYear(),
+            now.getMonth() + 1,
+            0,
+            20,
+            0,
+            0
+          ); // 8 PM
+
+          if (now.getDate() === lastDayOfMonth.getDate()) {
+            // إذا كان اليوم هو آخر يوم من الشهر، جدولة تقرير نهاية الشهر
+            const endOfMonthReport =
+              await notificationService.scheduleNotification({
+                id: 'end-of-month-report-scheduled',
+                title: '📊 تقرير نهاية الشهر',
+                body: 'حان وقت مراجعة أدائك المالي لهذا الشهر! اضغط لإنشاء التقرير',
+                data: { type: 'end_of_month_reminder', screen: 'finance' },
+                trigger: { date: lastDayOfMonth, repeats: false },
+              });
+            console.log('تم جدولة تقرير نهاية الشهر بنجاح');
+          }
+        } catch (error) {
+          console.error('خطأ في تهيئة الإشعارات:', error);
+          // Continue without notifications for now
         }
-      } catch (error) {
-        console.error('خطأ في تهيئة الإشعارات:', error);
-        // Continue without notifications for now
-      }
-    };
-    
-    initNotifications();
-  }, []);
+      };
 
-  // Always start with onboarding on app load
+      initNotifications();
+    }
+  }, [isAuthenticated, isLoading]);
+
+  // Handle navigation based on app state
   useEffect(() => {
-    if (!isLoading) {
-      console.log('📍 Always starting with onboarding');
-      // Always navigate to onboarding on app start
+    if (isLoading) return; // Don't navigate while loading
+
+    if (!hasCompletedOnboarding) {
+      console.log('📍 Navigating to onboarding (first time user)');
       router.replace('/onboarding' as any);
+    } else if (!isAuthenticated) {
+      console.log(
+        '📍 Navigating to login (onboarding completed, not authenticated)'
+      );
+      router.replace('/login' as any);
+    } else {
+      console.log('📍 Navigating to main app (authenticated user)');
+      router.replace('/(tabs)' as any);
     }
-  }, [isLoading, router]);
-
-  // Handle navigation during session (after user completes steps)
-  useEffect(() => {
-    // Don't interfere with initial load
-    if (isLoading) return;
-    
-    // During session, handle navigation based on completion
-    if (hasCompletedOnboarding && !hasCompletedLogin) {
-      console.log('📍 Session navigation: Going to login');
-      // This will be triggered by onboarding completion
-    } else if (hasCompletedOnboarding && hasCompletedLogin) {
-      console.log('📍 Session navigation: Going to main app');
-      // This will be triggered by login completion
-    }
-  }, [hasCompletedOnboarding, hasCompletedLogin, isLoading]);
+  }, [hasCompletedOnboarding, isAuthenticated, isLoading, router]);
 
   // Show loading screen while determining initial route
   if (isLoading) {
@@ -92,12 +101,11 @@ function RootLayoutContent() {
   }
 
   return (
-    <Stack 
-      screenOptions={{ 
+    <Stack
+      screenOptions={{
         headerShown: false,
         animation: 'slide_from_right', // RTL animation
       }}
-      initialRouteName="onboarding"
     >
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="login" />

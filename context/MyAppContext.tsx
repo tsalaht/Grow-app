@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthApi } from '../services/api';
 
@@ -15,7 +21,11 @@ type MyAppContextType = {
   // New authentication properties
   isAuthenticated: boolean;
   userData: any;
-  login: (email: string, password: string, fcmToken: string) => Promise<boolean>;
+  login: (
+    email: string,
+    password: string,
+    fcmToken: string
+  ) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuthStatus: () => Promise<void>;
 };
@@ -36,43 +46,86 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
 
   // Check authentication status on app start
   useEffect(() => {
-    checkAuthStatus();
+    loadPersistentState();
   }, []);
 
-  // Check if user is authenticated
-  const checkAuthStatus = async () => {
+  // Load persistent state from AsyncStorage
+  const loadPersistentState = async () => {
     try {
       setIsLoading(true);
-      const authenticated = await AuthApi.isAuthenticated();
-      const user = await AuthApi.getUserData();
-      
-      setIsAuthenticated(authenticated);
-      setUserData(user);
-      
-      if (authenticated && user) {
-        setUsername(user.name || 'زائر');
-        setHasCompletedLogin(true);
-      }
-      
-      console.log('🔐 Auth status checked:', { authenticated, user });
+
+      // Load onboarding completion status
+      const onboardingCompleted = await AsyncStorage.getItem(ONBOARDING_KEY);
+      const onboardingStatus = onboardingCompleted === 'true';
+      setHasCompletedOnboarding(onboardingStatus);
+
+      // Check authentication status
+      await checkAuthStatus();
+
+      console.log('📱 Loaded persistent state:', {
+        onboarding: onboardingStatus,
+        authenticated: isAuthenticated,
+      });
     } catch (error) {
-      console.error('Error checking auth status:', error);
-      setIsAuthenticated(false);
-      setUserData(null);
+      console.error('Error loading persistent state:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Set up periodic authentication check
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Check authentication every 5 minutes when user is logged in
+      const interval = setInterval(() => {
+        checkAuthStatus();
+      }, 5 * 60 * 1000); // 5 minutes
+
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
+  // Check if user is authenticated
+  const checkAuthStatus = async () => {
+    try {
+      const authenticated = await AuthApi.isAuthenticated();
+      const user = await AuthApi.getUserData();
+
+      setIsAuthenticated(authenticated);
+      setUserData(user);
+
+      if (authenticated && user) {
+        setUsername(user.name || 'زائر');
+        setHasCompletedLogin(true);
+      } else {
+        setHasCompletedLogin(false);
+        setUsername('زائر');
+      }
+
+      console.log('🔐 Auth status checked:', { authenticated, user });
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      setIsAuthenticated(false);
+      setUserData(null);
+      setHasCompletedLogin(false);
+      setUsername('زائر');
+    }
+  };
+
   // Login function
-  const login = async (email: string, password: string, fcmToken: string): Promise<boolean> => {
+  const login = async (
+    email: string,
+    password: string,
+    fcmToken: string
+  ): Promise<boolean> => {
     try {
       setIsLoading(true);
       const result = await AuthApi.login({ email, password, fcmToken });
-      
+
       console.log('API login response in context:', result); // Debug log
 
-      if (result.token) { // Check for token at root level
+      if (result.token) {
+        // Check for token at root level
         setIsAuthenticated(true);
         setUserData(result.data?.user); // Access user from result.data?.user
         setUsername(result.data?.user?.name || 'زائر'); // Set username from result.data.user.name
@@ -124,10 +177,19 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   }, []);
 
-  // Set onboarding state (session only - no persistence)
-  const handleSetHasCompletedOnboarding = (completed: boolean) => {
+  // Set onboarding completion with persistence
+  const handleSetHasCompletedOnboarding = async (completed: boolean) => {
     setHasCompletedOnboarding(completed);
-    console.log('📝 Set onboarding state (session only):', completed);
+    try {
+      if (completed) {
+        await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
+      } else {
+        await AsyncStorage.removeItem(ONBOARDING_KEY);
+      }
+      console.log('📝 Set onboarding state (persistent):', completed);
+    } catch (error) {
+      console.error('Error saving onboarding state:', error);
+    }
   };
 
   // Set login state (session only - no persistence)
@@ -141,7 +203,7 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
     try {
       await Promise.all([
         AsyncStorage.removeItem(ONBOARDING_KEY),
-        AsyncStorage.removeItem(LOGIN_KEY)
+        AsyncStorage.removeItem(LOGIN_KEY),
       ]);
       setHasCompletedOnboarding(false);
       setHasCompletedLogin(false);
@@ -159,7 +221,7 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
     try {
       await Promise.all([
         AsyncStorage.removeItem(ONBOARDING_KEY),
-        AsyncStorage.removeItem(LOGIN_KEY)
+        AsyncStorage.removeItem(LOGIN_KEY),
       ]);
       setHasCompletedOnboarding(false);
       setHasCompletedLogin(false);
@@ -174,23 +236,25 @@ export const MyAppProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <MyAppContext.Provider value={{ 
-      username, 
-      setUsername, 
-      hasCompletedOnboarding, 
-      setHasCompletedOnboarding: handleSetHasCompletedOnboarding,
-      hasCompletedLogin,
-      setHasCompletedLogin: handleSetHasCompletedLogin,
-      resetAppState,
-      forceResetToOnboarding,
-      isLoading,
-      // New authentication properties
-      isAuthenticated,
-      userData,
-      login,
-      logout,
-      checkAuthStatus,
-    }}>
+    <MyAppContext.Provider
+      value={{
+        username,
+        setUsername,
+        hasCompletedOnboarding,
+        setHasCompletedOnboarding: handleSetHasCompletedOnboarding,
+        hasCompletedLogin,
+        setHasCompletedLogin: handleSetHasCompletedLogin,
+        resetAppState,
+        forceResetToOnboarding,
+        isLoading,
+        // New authentication properties
+        isAuthenticated,
+        userData,
+        login,
+        logout,
+        checkAuthStatus,
+      }}
+    >
       {children}
     </MyAppContext.Provider>
   );
